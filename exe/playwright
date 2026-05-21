@@ -1,0 +1,11 @@
+#! /usr/bin/env ruby
+# frozen_string_literal: true
+
+require "venetian"
+
+begin
+  Venetian.execute(*ARGV, echo: ENV.fetch("VENETIAN_DEBUG", nil))
+rescue Venetian::Executable::UnsupportedPlatformError, Venetian::Executable::ExecutableNotFoundError => e
+  warn "ERROR: #{e.message}"
+  exit 1
+end

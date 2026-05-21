@@ -1,0 +1,31 @@
+name: Ruby Gem
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - lib/venetian/version.rb
+
+jobs:
+  build:
+    name: Release gem
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
+
+    environment: release
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install Ruby and gems
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          cache-version: package
+          ruby-version: ruby
+      - name: Publish to RubyGems
+        uses: rubygems/release-gem@v1
