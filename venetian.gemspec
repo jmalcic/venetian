@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "lib/venetian/version"
+require "playwright/version"
 
 Gem::Specification.new do |spec|
   spec.name = "venetian"
@@ -18,6 +19,7 @@ Gem::Specification.new do |spec|
   spec.metadata["homepage_uri"] = "https://malcic.codes/software/venetian"
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["rubygems_mfa_required"] = "true"
+  spec.metadata["playwright_version"] = Playwright::COMPATIBLE_PLAYWRIGHT_VERSION
 
   gemspec = File.basename(__FILE__)
   spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
@@ -32,5 +34,6 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "capybara-playwright-driver", "~> 0.5"
+  spec.add_dependency "capybara-playwright-driver", ">= 0.5"
+  spec.add_dependency "playwright-ruby-client", ">= #{Venetian::MINIMUM_PLAYWRIGHT_RUBY_CLIENT_VERSION}"
 end

@@ -2,6 +2,7 @@
 
 require "open-uri"
 require "tmpdir"
+require "playwright/version"
 require_relative "../lib/venetian/gemspec"
 require_relative "../lib/venetian/upstream"
 
@@ -50,12 +51,54 @@ module ReleaseTaskHelpers # :nodoc: all
                      .install
   end
 
+  def released_playwright_version
+    return unless released_spec
+
+    released_spec.first.metadata["playwright_version"]
+  end
+
+  def patch
+    gsub version_file, /(?<=\sVERSION = )".+"/, "\"#{patched_version_string}\""
+    gsub version_file, /(?<=\sMINIMUM_PLAYWRIGHT_RUBY_CLIENT_VERSION = )".+"/, "\"#{Playwright::VERSION}\""
+    system "bundle", "install", exception: true
+    system "git", "commit", version_file, "Gemfile.lock", "-m", "Bump version to #{patched_version_string}",
+           exception: true
+    system "git", "push", exception: true
+  end
+
   private
 
   def with_tmp_zip_pathname(&block)
     Dir.mktmpdir do |tmpdir|
       Pathname.new(tmpdir).join(PLAYWRIGHT_ZIP).then(&block)
     end
+  end
+
+  def gsub(file, regexp, replacement)
+    File.binwrite(file, File.binread(file).gsub(regexp, replacement))
+  end
+
+  def version_file
+    Venetian.const_source_location(:VERSION).first
+  end
+
+  def patched_version_string
+    [*current_version.segments[0..-2], current_version.segments.last.succ].join(".")
+  end
+
+  def current_version
+    Gem::Version.new(Venetian::VERSION)
+  end
+
+  def released_spec
+    released_specs.first.first
+  end
+
+  def released_specs
+    @released_specs ||= Gem::SpecFetcher.fetcher
+                                        .spec_for_dependency(Gem::Dependency.new(Venetian::GEMSPEC.name,
+                                                                                 Venetian::GEMSPEC.version),
+                                                             true)
   end
 end
 
@@ -91,4 +134,11 @@ Venetian::Upstream.download_urls.each do |platform, url|
       Rake::Task[name].enhance %W[#{platform}:#{name}_platform] unless name == "build"
     end
   end
+end
+
+desc "Checks if the current compatible Playwright version is greater than the released version"
+task :sync_version do
+  include ReleaseTaskHelpers
+
+  patch unless released_playwright_version == Venetian::GEMSPEC.metadata["playwright_version"]
 end
