@@ -59,10 +59,10 @@ module ReleaseTaskHelpers # :nodoc: all
 
   def patch
     gsub version_file, /(?<=\sVERSION = )".+"/, "\"#{patched_version_string}\""
-    gsub version_file, /(?<=\sMINIMUM_PLAYWRIGHT_RUBY_CLIENT_VERSION = )".+"/, "\"#{Playwright::VERSION}\""
     gsub version_file, /(?<=\sCOMPATIBLE_PLAYWRIGHT_VERSION = )".+"/, "\"#{Playwright::COMPATIBLE_PLAYWRIGHT_VERSION}\""
+    gsub gemspec_file, /(?<="playwright-ruby-client", ">= )#{Gem::Version::VERSION_PATTERN}/, Playwright::VERSION
     system "bundle", "install", exception: true
-    system "git", "commit", version_file, "Gemfile.lock", "-m", "Bump version to #{patched_version_string}",
+    system "git", "commit", version_file, gemspec_file, "Gemfile.lock", "-m", "Bump version to #{patched_version_string}",
            exception: true
     system "git", "push", exception: true
   end
@@ -81,6 +81,10 @@ module ReleaseTaskHelpers # :nodoc: all
 
   def version_file
     Venetian.const_source_location(:VERSION).first
+  end
+
+  def gemspec_file
+    File.join(__dir__, "..", "venetian.gemspec")
   end
 
   def patched_version_string
