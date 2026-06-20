@@ -145,5 +145,5 @@ desc "Checks if the current compatible Playwright version is greater than the re
 task :sync_version do
   include ReleaseTaskHelpers
 
-  patch unless released_playwright_version == Venetian::GEMSPEC.metadata["playwright_version"]
+  patch unless released_playwright_version == Playwright::COMPATIBLE_PLAYWRIGHT_VERSION
 end
