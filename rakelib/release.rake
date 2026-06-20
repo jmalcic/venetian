@@ -60,6 +60,7 @@ module ReleaseTaskHelpers # :nodoc: all
   def patch
     gsub version_file, /(?<=\sVERSION = )".+"/, "\"#{patched_version_string}\""
     gsub version_file, /(?<=\sMINIMUM_PLAYWRIGHT_RUBY_CLIENT_VERSION = )".+"/, "\"#{Playwright::VERSION}\""
+    gsub version_file, /(?<=\sCOMPATIBLE_PLAYWRIGHT_VERSION = )".+"/, "\"#{Playwright::COMPATIBLE_PLAYWRIGHT_VERSION}\""
     system "bundle", "install", exception: true
     system "git", "commit", version_file, "Gemfile.lock", "-m", "Bump version to #{patched_version_string}",
            exception: true
