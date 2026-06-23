@@ -92,7 +92,7 @@ module Venetian
     end
 
     def local_platform
-      Gem::Platform.local.dup.tap { it.version = nil }
+      Gem::Platform.local.dup.tap { |platform| platform.version = nil }
     end
   end
 end
