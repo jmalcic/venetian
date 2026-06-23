@@ -26,4 +26,8 @@ module Venetian
   def self.execute(*, echo: true)
     Executable.execute(*, echo: echo)
   end
+
+  def self.system(*, echo: true, **)
+    Executable.system(*, echo: echo, **)
+  end
 end
