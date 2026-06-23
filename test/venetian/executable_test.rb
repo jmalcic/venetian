@@ -61,7 +61,7 @@ module Venetian
 
     private
 
-    def mocking_exe_directory(platform: Gem::Platform.local.to_s, executable: true, plaform_matches: true,
+    def mocking_exe_directory(platform: local_platform, executable: true, plaform_matches: true,
                               stub_exe_dir: true, &block)
       Dir.mktmpdir do |dir|
         Gem::Platform.stub(:match_gem?, plaform_matches) do
@@ -74,14 +74,14 @@ module Venetian
       end
     end
 
-    def with_mock_executable(path, platform: Gem::Platform.local.to_s, dir_only: false, &)
-      FileUtils.mkdir_p(File.join(path, platform))
+    def with_mock_executable(path, platform: local_platform, dir_only: false, &)
+      FileUtils.mkdir_p(File.join(path, platform.to_s))
       if dir_only
         yield
         return
       end
 
-      File.join(path, platform, "node")
+      File.join(path, platform.to_s, "node")
           .tap { |exe_path| FileUtils.touch(exe_path) }
           .tap { |exe_path| FileUtils.chmod(0o755, exe_path) }
           .then(&)
@@ -89,6 +89,10 @@ module Venetian
 
     def stubbing_exe_dir(dir = nil, &)
       Executable.stub(:exe_dir, dir, &)
+    end
+
+    def local_platform
+      Gem::Platform.local.dup.tap { it.version = nil }
     end
   end
 end
