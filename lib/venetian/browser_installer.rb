@@ -18,7 +18,7 @@ module Venetian
 
     # Installs a browser. Raises InstallError if installation fails.
     def self.install(browser = nil)
-      Executable.system "install", *browser&.to_s, exception: true
+      Venetian.system "install", *browser&.to_s, exception: true, echo: ENV.fetch("VENETIAN_DEBUG", nil)
     rescue StandardError => e
       raise InstallError, e.message
     end

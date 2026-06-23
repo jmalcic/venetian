@@ -9,7 +9,7 @@ module Venetian
     end
 
     test "install executes correct command" do
-      @system_mock.expect(:call, true, ["install"], exception: true)
+      @system_mock.expect(:call, true, ["install"], exception: true, echo: nil)
       with_stubs do
         BrowserInstaller.install
       end
@@ -18,7 +18,7 @@ module Venetian
     end
 
     test "install passes browser name" do
-      @system_mock.expect(:call, true, %w[install firefox], exception: true)
+      @system_mock.expect(:call, true, %w[install firefox], exception: true, echo: nil)
       with_stubs do
         BrowserInstaller.install(:firefox)
       end
