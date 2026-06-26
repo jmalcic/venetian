@@ -9,7 +9,7 @@ module Venetian
     end
 
     test "install executes correct command" do
-      @system_mock.expect(:call, true, ["install"], exception: true, echo: nil)
+      @system_mock.expect(:call, true, %w[install --with-deps], exception: true, echo: nil)
       with_stubs do
         BrowserInstaller.install
       end
@@ -18,9 +18,18 @@ module Venetian
     end
 
     test "install passes browser name" do
-      @system_mock.expect(:call, true, %w[install firefox], exception: true, echo: nil)
+      @system_mock.expect(:call, true, %w[install firefox --with-deps], exception: true, echo: nil)
       with_stubs do
         BrowserInstaller.install(:firefox)
+      end
+
+      assert_mock @system_mock
+    end
+
+    test "install allows skipping dependenceies" do
+      @system_mock.expect(:call, true, %w[install], exception: true, echo: nil)
+      with_stubs do
+        BrowserInstaller.install(install_dependencies: false)
       end
 
       assert_mock @system_mock
