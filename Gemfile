@@ -4,6 +4,7 @@ source "https://rubygems.org"
 
 gemspec
 
+gem "actionpack"
 gem "irb"
 gem "minitest"
 gem "minitest-mock"
