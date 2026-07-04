@@ -23,8 +23,8 @@ module Venetian
 
   self.auto_install_browsers = true
 
-  def self.execute(*, echo: true)
-    Executable.execute(*, echo: echo)
+  def self.execute(*, echo: true, **)
+    Executable.execute(*, echo: echo, **)
   end
 
   def self.system(*, echo: true, **)

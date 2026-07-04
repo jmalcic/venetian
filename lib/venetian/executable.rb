@@ -5,6 +5,10 @@ module Venetian
   #
   # Provides methods for locating the Playwright executable.
   module Executable
+    class Executor # :nodoc:
+      public :system, :exec
+    end
+
     DEFAULT_DIR = File.expand_path(File.join(__dir__, "..", "..", "exe")) # :nodoc:
     INSTALL_DIR_ENV_VAR = "VENETIAN_INSTALL_DIR" # :nodoc:
 
@@ -82,21 +86,25 @@ module Venetian
       end
 
       # Executes the Playwright executable with the given arguments.
-      def execute(*args, echo: true)
-        [base_command, *args].then do |command|
-          puts command.inspect if echo
+      def execute(*args, echo: true, exception: true, **)
+        [*base_command, *args].then do |command|
           # due to mysterious Windows behavior; see equivalent in `tailwindcss-ruby`
-          next system(*command, exception: true) if Gem.win_platform?
+          next system(*args, exception:, echo:) if Gem.win_platform?
 
-          exec(*command)
+          puts command.shelljoin if echo
+          begin
+            executor.exec(*command)
+          rescue StandardError
+            exception ? raise : false
+          end
         end
       end
 
       # Runs the Playwright executable with the given arguments.
-      def system(*args, echo: true, **)
+      def system(*args, echo: true, exception: true, **)
         [*base_command, *args].then do |command|
-          puts command.inspect if echo
-          super(*command, exception: true)
+          puts command.shelljoin if echo
+          executor.system(*command, exception:)
         end
       end
 
@@ -133,7 +141,7 @@ module Venetian
       def exe_path
         return custom_exe_path if ENV.key?(INSTALL_DIR_ENV_VAR)
 
-        Upstream::NATIVE_PLATFORMS.select { |platform, _| Gem::Platform.match_gem?(Gem::Platform.new(platform), GEMSPEC.name) }
+        Upstream::NATIVE_PLATFORMS.select { |platform, _| Gem::Platform.match_gem?(Gem::Platform.new(platform), gem_name) }
                                   .collect { |platform, _info| File.join(exe_dir, platform, "node") }
                                   .detect { |candidate| File.exist?(candidate) }
       end
@@ -143,11 +151,19 @@ module Venetian
       end
 
       def gem_platforms_unsupported?
-        Upstream::NATIVE_PLATFORMS.keys.none? { |platform| Gem::Platform.match_gem?(Gem::Platform.new(platform), GEMSPEC.name) }
+        Upstream::NATIVE_PLATFORMS.keys.none? { |platform| Gem::Platform.match_gem?(Gem::Platform.new(platform), gem_name) }
+      end
+
+      def gem_name
+        GEMSPEC&.name || "venetian"
       end
 
       def platform
         Gem::Platform.local.to_s
+      end
+
+      def executor
+        @executor ||= Executor.new
       end
     end
   end

@@ -4,6 +4,147 @@ require "test_helper"
 
 module Venetian
   class ExecutableTest < Minitest::Test
+    module Execution
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
+          test "system calls executor with base command and args" do
+            mocking_exe_directory do
+              @executor_mock.expect(:system, true, [*Executable.base_command, "foo"], exception: true)
+
+              with_stubs do
+                assert_output "#{Executable.base_command.shelljoin} foo\n" do
+                  assert Executable.system "foo"
+                end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "system calls executor and raises when exception is true" do
+            mocking_exe_directory do
+              @executor_mock.expect(:system, nil) do |*args, **options|
+                assert_equal [*Executable.base_command, "foo", { exception: true }], [*args, options]
+                raise StandardError
+              end
+
+              with_stubs do
+                assert_raises StandardError do
+                  Executable.system "foo"
+                end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "system calls executor without raising when exception is false" do
+            mocking_exe_directory do
+              @executor_mock.expect(:system, nil, [*Executable.base_command, "foo"], exception: false)
+
+              with_stubs do
+                refute Executable.system "foo", exception: false
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "system does not print when echo is false" do
+            mocking_exe_directory do
+              @executor_mock.expect(:system, true, [*Executable.base_command, "foo"], exception: true)
+
+              with_stubs do
+                assert_output "" do
+                  assert Executable.system "foo", echo: false
+                end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "execute calls exec with base command and args" do
+            mocking_exe_directory do
+              @executor_mock.expect(:exec, true, [*Executable.base_command, "foo"])
+
+              with_stubs do
+                assert_output "#{Executable.base_command.shelljoin} foo\n" do
+                  assert Executable.execute "foo"
+                end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "execute calls system on Windows" do
+            mocking_exe_directory do
+              @executor_mock.expect(:system, true, [*Executable.base_command, "foo"], exception: true)
+
+              Gem.stub :win_platform?, true do
+                with_stubs do
+                  assert_output "#{Executable.base_command.shelljoin} foo\n" do
+                    assert Executable.execute "foo"
+                  end
+                end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "execute does not print when echo is false" do
+            mocking_exe_directory do
+              @executor_mock.expect(:exec, true, [*Executable.base_command, "foo"])
+
+              with_stubs do
+                assert_output "" do
+                  assert Executable.execute "foo", echo: false
+                end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "execute returns false when exec raises and exception is false" do
+            mocking_exe_directory do
+              @executor_mock.expect(:exec, nil) { raise StandardError }
+
+              with_stubs do
+                refute Executable.execute("foo", exception: false, echo: false)
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "execute re-raises when exec raises and exception is true" do
+            mocking_exe_directory do
+              @executor_mock.expect(:exec, nil) { raise StandardError, "boom" }
+
+              with_stubs do
+                assert_raises StandardError, match: /boom/ do
+                  Executable.execute "foo", echo: false
+                end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+        end
+      end
+    end
+
+    include Execution::Tests
+
+    setup do
+      @executor_mock = Minitest::Mock.new
+    end
+
     teardown do
       ENV.delete("VENETIAN_INSTALL_DIR")
     end
@@ -93,6 +234,10 @@ module Venetian
 
     def local_platform
       Gem::Platform.local.dup.tap { |platform| platform.version = nil }
+    end
+
+    def with_stubs(&)
+      Executable.stub :executor, @executor_mock, &
     end
   end
 end
