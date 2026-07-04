@@ -4,6 +4,20 @@ require "test_helper"
 
 module Venetian
   class ExecutableTest < Minitest::Test
+    class ExecutorMock < Minitest::Mock
+      def expect_system(retval, args = nil, **)
+        if retval.is_a?(Class) && retval <= Exception
+          expect(:system, nil) do |*actual_args, **actual_options|
+            assert_equal [*Executable.base_command, *args], actual_args
+            assert_equal Hash(**), actual_options
+            raise retval
+          end
+        else
+          expect(:system, retval, [*Executable.base_command, *args], **)
+        end
+      end
+    end
+
     module Execution
       module Tests
         extend ActiveSupport::Concern
@@ -11,7 +25,7 @@ module Venetian
         included do
           test "system calls executor with base command and args" do
             mocking_exe_directory do
-              @executor_mock.expect(:system, true, [*Executable.base_command, "foo"], exception: true)
+              @executor_mock.expect_system(true, ["foo"], exception: true)
 
               with_stubs do
                 assert_output "#{Executable.base_command.shelljoin} foo\n" do
@@ -25,10 +39,7 @@ module Venetian
 
           test "system calls executor and raises when exception is true" do
             mocking_exe_directory do
-              @executor_mock.expect(:system, nil) do |*args, **options|
-                assert_equal [*Executable.base_command, "foo", { exception: true }], [*args, options]
-                raise StandardError
-              end
+              @executor_mock.expect_system(StandardError)
 
               with_stubs do
                 assert_raises StandardError do
@@ -42,7 +53,7 @@ module Venetian
 
           test "system calls executor without raising when exception is false" do
             mocking_exe_directory do
-              @executor_mock.expect(:system, nil, [*Executable.base_command, "foo"], exception: false)
+              @executor_mock.expect_system(nil, ["foo"], exception: false)
 
               with_stubs do
                 refute Executable.system "foo", exception: false
@@ -54,7 +65,7 @@ module Venetian
 
           test "system does not print when echo is false" do
             mocking_exe_directory do
-              @executor_mock.expect(:system, true, [*Executable.base_command, "foo"], exception: true)
+              @executor_mock.expect_system(true, ["foo"], exception: true, out: File::NULL, err: File::NULL)
 
               with_stubs do
                 assert_output "" do
@@ -82,7 +93,7 @@ module Venetian
 
           test "execute calls system on Windows" do
             mocking_exe_directory do
-              @executor_mock.expect(:system, true, [*Executable.base_command, "foo"], exception: true)
+              @executor_mock.expect_system(true, ["foo"], exception: true)
 
               Gem.stub :win_platform?, true do
                 with_stubs do
@@ -142,7 +153,7 @@ module Venetian
     include Execution::Tests
 
     setup do
-      @executor_mock = Minitest::Mock.new
+      @executor_mock = ExecutorMock.new
     end
 
     teardown do

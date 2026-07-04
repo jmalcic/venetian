@@ -104,7 +104,8 @@ module Venetian
       def system(*args, echo: true, exception: true, **)
         [*base_command, *args].then do |command|
           puts command.shelljoin if echo
-          executor.system(*command, exception:)
+          executor.system(*command,
+                          exception:, **{ out: echo ? nil : File::NULL, err: echo ? nil : File::NULL }.compact)
         end
       end
 
