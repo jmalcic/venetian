@@ -16,12 +16,13 @@ require "venetian/railtie" if defined? Rails
 # Native Playwright driver for Capybara.
 module Venetian
   class << self
-    attr_accessor :auto_install_browsers
+    attr_accessor :auto_install_browsers, :auto_install_dependencies
   end
 
   class Error < StandardError; end
 
   self.auto_install_browsers = true
+  self.auto_install_dependencies = true
 
   def self.execute(*, echo: true, **)
     Executable.execute(*, echo: echo, **)
