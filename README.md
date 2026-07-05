@@ -14,6 +14,8 @@ bundle add venetian --group test
 
 ## Usage
 
+### Rails system tests
+
 In your system test case, choose the Playwright driver. Venetian will provide the base command to run Playwright,
 which you can still override by passing `:playwright_cli_executable_path`, and this plus any other options will be passed through 
 to `capybara-playwright-driver`.
@@ -44,6 +46,44 @@ but if you do and your distro is unsupported, you will need to work out what you
 When parallelizing tests, there's also the issue of multiple processes all trying to acquire the package manager lock:
 if you use Rails system tests with `ActionDispatch::SystemTestCase`,
 this is handled automatically by installing all required browsers before disabling auto-installation and then forking.
+
+### Installing browsers manually
+
+If you can't rely on automatic installation, you can use the included Rake task to install browsers.
+With Rails this is included automatically when the gem is required.
+
+```bash
+$ RAILS_ENV=test rails venetian:install
+
+# Or a specific browser
+$ RAILS_ENV=test rails venetian:install[firefox]
+```
+
+Otherwise in your Rakefile add:
+
+```ruby
+load "tasks/venetian.rake"
+```
+
+And then run:
+
+```bash
+$ rake venetian:install
+```
+
+### Running Playwright yourself
+
+The gem provides a `playwright` executable which you can use to run Playwright yourself.
+
+```bash
+$ playwright --version 
+Version 1.61.1
+```
+
+### Getting more output
+
+Noisy output during a test run is often frustrating, so the gem is quiet by default. 
+You can get more output with `VENETIAN_DEBUG=1`.
 
 ## Development
 
