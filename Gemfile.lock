@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    venetian (0.1.4)
+    venetian (0.2.0)
       capybara-playwright-driver (>= 0.5)
       playwright-ruby-client (>= 1.61.0)
 
@@ -247,7 +247,7 @@ CHECKSUMS
   unicode-emoji (4.2.0) sha256=519e69150f75652e40bf736106cfbc8f0f73aa3fb6a65afe62fefa7f80b0f80f
   uri (1.1.1) sha256=379fa58d27ffb1387eaada68c749d1426738bd0f654d812fcc07e7568f5c57c6
   useragent (0.16.11) sha256=700e6413ad4bb954bb63547fa098dddf7b0ebe75b40cc6f93b8d54255b173844
-  venetian (0.1.4)
+  venetian (0.2.0)
   xpath (3.2.0) sha256=6dfda79d91bb3b949b947ecc5919f042ef2f399b904013eb3ef6d20dd3a4082e
 
 BUNDLED WITH
