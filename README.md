@@ -16,7 +16,7 @@ bundle add venetian --group test
 
 In your system test case, choose the Playwright driver. Venetian will provide the base command to run Playwright,
 which you can still override by passing `:playwright_cli_executable_path`, and this plus any other options will be passed through 
-to `capybara-playwright-driver`. If you specify a browser, this will be automatically downloaded if necessary.
+to `capybara-playwright-driver`.
 
 ```ruby
 require "test_helper"
@@ -25,6 +25,25 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   driven_by :playwright
 end
 ```
+
+### Automatic browser and dependency installation
+
+The gem will automatically install a browser and dependencies for you before attempting to use it.
+Browsers are installed to `$XDG_CACHE_HOME/ms-playwright` on Linux, `~/Library/Caches/ms-playwright` on macOS, 
+and `%LOCALAPPDATA%\ms-playwright` on Windows. In CI, you will want to 
+[cache this directory](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching) 
+to avoid downloads on every run.
+
+On Linux,
+[Playwright currently only officially supports Debian and Ubuntu](https://playwright.dev/docs/intro#system-requirements) 
+due to e.g. differences between package managers and package names across distros, 
+so dependency installation happens only if a compatible package manager is found.
+Depending on what you're doing, you may not need to install dependencies, 
+but if you do and your distro is unsupported, you will need to work out what you need and deal with that first.
+
+When parallelizing tests, there's also the issue of multiple processes all trying to acquire the package manager lock:
+if you use Rails system tests with `ActionDispatch::SystemTestCase`,
+this is handled automatically by installing all required browsers before disabling auto-installation and then forking.
 
 ## Development
 
