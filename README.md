@@ -28,6 +28,16 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 end
 ```
 
+### Using Capybara directly
+
+Likewise, register the Playwright driver before using it later:
+
+```ruby
+Capybara.register_driver :playwright do |app|
+  Capybara::Playwright::Driver.new(app)
+end
+```
+
 ### Automatic browser and dependency installation
 
 The gem will automatically install a browser and dependencies for you before attempting to use it.
