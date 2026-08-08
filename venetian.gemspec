@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.3.0"
 
-  spec.metadata["homepage_uri"] = "https://malcic.codes/software/venetian"
+  spec.metadata["homepage_uri"] = "https://malcic.codes/projects/software/venetian"
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["rubygems_mfa_required"] = "true"
   spec.metadata["playwright_version"] = Venetian::COMPATIBLE_PLAYWRIGHT_VERSION
