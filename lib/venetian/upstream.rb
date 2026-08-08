@@ -7,26 +7,43 @@ module Venetian
   #
   # Provides platform mappings and URLs for Playwright.
   module Upstream
-    # map of gem platform strings to Playwright CDN platform strings and executable names inside the driver zip
-    NATIVE_PLATFORMS = {
-      "x86_64-linux" => "linux",
-      "aarch64-linux" => "linux-arm64",
-      "x86_64-darwin" => "mac",
-      "arm64-darwin" => "mac-arm64",
-      "x64-mingw-ucrt" => "win32_x64"
-    }.freeze
+    # Describes how to assemble the Playwright driver for a single gem platform.
+    #
+    # +node_dir+:: the platform infix used in Node.js release archive names (e.g. "linux-x64")
+    # +windows+:: whether this platform's Node.js archive is a Windows build (.zip, node.exe)
+    PlatformInfo = Data.define(:node_dir, :windows) do
+      # Returns the filename of the Node executable inside the assembled driver.
+      def executable_name
+        windows ? "node.exe" : "node"
+      end
 
-    # base for driver download URLs
-    BASE_URL = "https://playwright.azureedge.net/builds/driver"
+      # Returns the file extension of the Node.js release archive for this platform.
+      def node_archive_extension
+        windows ? "zip" : "tar.gz"
+      end
 
-    # Returns the URL to download the driver for the given platform.
-    def self.driver_download_url(playwright_platform)
-      "#{BASE_URL}/playwright-#{Playwright::COMPATIBLE_PLAYWRIGHT_VERSION}-#{playwright_platform}.zip"
+      # Returns the URL to download the Node.js release archive for the given version.
+      def node_url_for(version)
+        "#{NODE_DIST_URL}/v#{version}/node-v#{version}-#{node_dir}.#{node_archive_extension}"
+      end
     end
 
-    # Returns a hash that maps platforms to download URLs.
-    def self.download_urls
-      NATIVE_PLATFORMS.transform_values { |value| driver_download_url(value) }
+    # map of gem platform strings to Node.js release info
+    NATIVE_PLATFORMS = { "x86_64-linux" => PlatformInfo.new(node_dir: "linux-x64", windows: false),
+                         "aarch64-linux" => PlatformInfo.new(node_dir: "linux-arm64", windows: false),
+                         "x86_64-darwin" => PlatformInfo.new(node_dir: "darwin-x64", windows: false),
+                         "arm64-darwin" => PlatformInfo.new(node_dir: "darwin-arm64", windows: false),
+                         "x64-mingw-ucrt" => PlatformInfo.new(node_dir: "win-x64", windows: true) }.freeze
+
+    # base for the npm registry, source of the playwright-core package
+    NPM_REGISTRY_URL = "https://registry.npmjs.org"
+
+    # base for Node.js release downloads
+    NODE_DIST_URL = "https://nodejs.org/dist"
+
+    # Returns the URL to download the playwright-core npm package containing the driver's JS sources.
+    def self.playwright_core_url
+      "#{NPM_REGISTRY_URL}/playwright-core/-/playwright-core-#{Playwright::COMPATIBLE_PLAYWRIGHT_VERSION}.tgz"
     end
 
     # Returns the gemspec files for the base gem.

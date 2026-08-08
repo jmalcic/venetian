@@ -1,7 +1,7 @@
 # Venetian
 
 Want stable system tests with Playwright, but don't want a Heath Robinson/Rube Goldberg setup in CI to try to keep the Ruby gem and Node
-package in sync? This gem packages a Node executable plus the common Playwright package, using builds produced by Playwright for other
+package in sync? This gem packages a Node executable plus the common Playwright package, in the same way Playwright is packaged for other
 languages.
 
 ## Installation

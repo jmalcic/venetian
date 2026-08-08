@@ -143,12 +143,16 @@ module Venetian
         return custom_exe_path if ENV.key?(INSTALL_DIR_ENV_VAR)
 
         Upstream::NATIVE_PLATFORMS.select { |platform, _| Gem::Platform.match_gem?(Gem::Platform.new(platform), gem_name) }
-                                  .collect { |platform, _info| File.join(exe_dir, platform, "node") }
+                                  .collect { |platform, info| File.join(exe_dir, platform, info.executable_name) }
                                   .detect { |candidate| File.exist?(candidate) }
       end
 
       def custom_exe_path
-        File.join(exe_dir, "node").then { |path| path if File.exist?(path) }
+        File.join(exe_dir, custom_exe_name).then { |path| path if File.exist?(path) }
+      end
+
+      def custom_exe_name
+        Gem.win_platform? ? "node.exe" : "node"
       end
 
       def gem_platforms_unsupported?
