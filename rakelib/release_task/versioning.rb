@@ -36,7 +36,7 @@ class ReleaseTask
     end
 
     def gemspec_file
-      File.join(__dir__, "..", "venetian.gemspec")
+      File.join(__dir__, "..", "..", "venetian.gemspec")
     end
 
     def patched_version_string
