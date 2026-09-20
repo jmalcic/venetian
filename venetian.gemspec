@@ -34,5 +34,5 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "capybara-playwright-driver", ">= 0.5"
-  spec.add_dependency "playwright-ruby-client", ">= 1.62.0"
+  spec.add_dependency "playwright-ruby-client", ">= 1.63.0"
 end
