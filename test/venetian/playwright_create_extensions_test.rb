@@ -16,7 +16,7 @@ module Venetian
     end
 
     test "user supplied path takes precedence" do
-      with_stubbed_path do
+      with_stubbed_path error: true do
         assert_equal "/custom/playwright",
                      TestPlaywrightCreate.new(playwright_cli_executable_path: "/custom/playwright")
                                          .playwright_cli_executable_path
@@ -31,8 +31,8 @@ module Venetian
 
     private
 
-    def with_stubbed_path(&)
-      Executable.stub(:path, "/bundled/playwright", &)
+    def with_stubbed_path(error: false, &)
+      Executable.stub(:path, error ? -> { flunk "unexpected path lookup" } : "/bundled/playwright", &)
     end
   end
 end
