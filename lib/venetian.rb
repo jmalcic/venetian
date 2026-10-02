@@ -2,33 +2,7 @@
 
 require "capybara/playwright"
 
-require "venetian/version"
-require "venetian/upstream"
-require "venetian/executable"
+require "venetian/playwright"
 require "venetian/playwright_create_extensions"
-require "venetian/browser_installer"
 require "venetian/browser_runner_extensions"
-require "venetian/gemspec"
-require "venetian/railtie" if defined? Rails
-
-# # Venetian
-#
-# Native Playwright driver for Capybara.
-module Venetian
-  class << self
-    attr_accessor :auto_install_browsers, :auto_install_dependencies
-  end
-
-  class Error < StandardError; end
-
-  self.auto_install_browsers = true
-  self.auto_install_dependencies = true
-
-  def self.execute(*, echo: true, **)
-    Executable.execute(*, echo: echo, **)
-  end
-
-  def self.system(*, echo: true, **)
-    Executable.system(*, echo: echo, **)
-  end
-end
+require "venetian/railtie" if defined?(Rails::Railtie)

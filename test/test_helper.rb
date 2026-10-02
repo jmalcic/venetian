@@ -7,6 +7,8 @@ require "minitest/autorun"
 require "minitest/mock"
 require "fileutils"
 require "tmpdir"
+require "open3"
+require "rbconfig"
 require "active_support/core_ext/object/with"
 require "active_support/concern"
 
