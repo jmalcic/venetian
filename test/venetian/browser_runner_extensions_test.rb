@@ -40,18 +40,35 @@ module Venetian
     test "start skips install when auto install browsers is false" do
       Venetian.auto_install_browsers = false
 
-      @install_mock.expect :call, nil do
-        flunk
-      end
-      with_stubs do
+      with_stubs error: true do
         FakeBrowserRunner.new.start
+      end
+    end
+
+    test "browser to preinstall is the configured browser" do
+      assert_equal :firefox, BrowserRunnerExtensions.browser_to_preinstall_from(browser_type: :firefox)
+    end
+
+    test "browser to preinstall defaults to chromium" do
+      assert_equal :chromium, BrowserRunnerExtensions.browser_to_preinstall_from({})
+    end
+
+    BrowserRunnerExtensions::ALTERNATIVE_DRIVER_OPTIONS.each do |option|
+      test "no browser to preinstall when #{option} given" do
+        assert_nil BrowserRunnerExtensions.browser_to_preinstall_from(browser_type: :firefox, option => "elsewhere")
+      end
+
+      test "start skips install when #{option} given" do
+        with_stubs error: true do
+          FakeBrowserRunner.new({ option => "/elsewhere" }).start
+        end
       end
     end
 
     private
 
-    def with_stubs(&)
-      BrowserInstaller.stub(:install, @install_mock, &)
+    def with_stubs(error: false, &)
+      BrowserInstaller.stub(:install, error ? proc { flunk } : @install_mock, &)
     end
   end
 end

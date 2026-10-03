@@ -85,6 +85,11 @@ When parallelizing tests, there's also the issue of multiple processes all tryin
 if you use Rails system tests with `ActionDispatch::SystemTestCase`,
 this is handled automatically by installing all required browsers before disabling auto-installation and then forking.
 
+Browsers aren't installed automatically if you pass your own `:playwright_cli_executable_path`, or connect to a server with
+`:playwright_server_endpoint_url` or `:browser_server_endpoint_url`, since the bundled executable won't be the one running them.
+You can also turn installation off with `Venetian.auto_install_browsers = false`, or just dependency installation with
+`Venetian.auto_install_dependencies = false`.
+
 ### Installing browsers manually
 
 If you can't rely on automatic installation, you can use the included Rake task to install browsers.

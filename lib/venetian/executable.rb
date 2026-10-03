@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require "shellwords"
 
 module Venetian
@@ -9,6 +10,10 @@ module Venetian
   module Executable
     class Executor # :nodoc:
       public :system, :exec
+
+      def capture(*command)
+        Open3.capture2e(*command)
+      end
     end
 
     DEFAULT_DIR = File.expand_path(File.join(__dir__, "..", "..", "exe")) # :nodoc:
@@ -108,6 +113,16 @@ module Venetian
           puts command.shelljoin if echo
           executor.system(*command,
                           exception:, **{ out: echo ? nil : File::NULL, err: echo ? nil : File::NULL }.compact)
+        end
+      end
+
+      # Runs the Playwright executable with the given arguments, returning its combined output and status.
+      def capture(*args, echo: true)
+        [*base_command, *args].then do |command|
+          puts command.shelljoin if echo
+          executor.capture(*command).tap do |output, _|
+            puts output if echo
+          end
         end
       end
 

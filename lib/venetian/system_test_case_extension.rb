@@ -16,7 +16,9 @@ module Venetian
       def driven_by(driver, options: {}, **)
         super
 
-        self.venetian_browser_type = driver == :playwright ? options.fetch(:browser_type, :chromium).to_sym : nil
+        self.venetian_browser_type = if driver == :playwright
+                                       BrowserRunnerExtensions.browser_to_preinstall_from(options)
+                                     end
       end
 
       def install_playwright_browsers

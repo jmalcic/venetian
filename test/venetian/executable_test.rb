@@ -18,7 +18,7 @@ module Venetian
       end
     end
 
-    module Execution
+    module Running
       module Tests
         extend ActiveSupport::Concern
 
@@ -77,6 +77,42 @@ module Venetian
             assert_mock @executor_mock
           end
 
+          test "capture calls executor and prints command and output" do
+            mocking_exe_directory do
+              @executor_mock.expect(:capture, ["output\n", :status], [*Executable.base_command, "foo"])
+
+              with_stubs do
+                assert_output "#{Executable.base_command.shelljoin} foo\noutput\n" do
+                  assert_equal ["output\n", :status], Executable.capture("foo")
+                end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "capture does not print when echo is false" do
+            mocking_exe_directory do
+              @executor_mock.expect(:capture, ["output\n", :status], [*Executable.base_command, "foo"])
+
+              with_stubs do
+                assert_output "" do
+                  assert_equal ["output\n", :status], Executable.capture("foo", echo: false)
+                end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+        end
+      end
+    end
+
+    module Execution
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
           test "execute calls exec with base command and args" do
             mocking_exe_directory do
               @executor_mock.expect(:exec, true, [*Executable.base_command, "foo"])
@@ -183,6 +219,7 @@ module Venetian
       end
     end
 
+    include Running::Tests
     include Execution::Tests
     include CliCommand::Tests
 
