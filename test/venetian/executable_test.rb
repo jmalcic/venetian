@@ -150,7 +150,41 @@ module Venetian
       end
     end
 
+    module CliCommand
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
+          test "cli command escapes arguments for a POSIX shell" do
+            Executable.stub(:base_command, ["/home/Jane Doe/node", "/home/Jane Doe/package/cli.js"]) do
+              Gem.stub(:win_platform?, false) do
+                assert_equal "/home/Jane\\ Doe/node /home/Jane\\ Doe/package/cli.js", Executable.cli_command
+              end
+            end
+          end
+
+          test "cli command quotes arguments on Windows" do
+            Executable.stub(:base_command, ["C:/Users/Jane Doe/node.exe", "C:/Users/Jane Doe/package/cli.js"]) do
+              Gem.stub(:win_platform?, true) do
+                assert_equal '"C:/Users/Jane Doe/node.exe" "C:/Users/Jane Doe/package/cli.js"', Executable.cli_command
+              end
+            end
+          end
+
+          test "cli command runs from a path needing quoting" do
+            mocking_exe_directory do
+              assert_pattern do
+                capture_subprocess_io { system("#{Executable.cli_command} run-driver") } =>
+                  ["#{Executable.base_command.last}\nrun-driver\n",]
+              end
+            end
+          end
+        end
+      end
+    end
+
     include Execution::Tests
+    include CliCommand::Tests
 
     setup do
       @executor_mock = ExecutorMock.new
@@ -215,7 +249,7 @@ module Venetian
 
     def mocking_exe_directory(platform: local_platform, executable: true, plaform_matches: true,
                               stub_exe_dir: true, &block)
-      Dir.mktmpdir do |dir|
+      with_tmpdir do |dir|
         Gem::Platform.stub(:match_gem?, plaform_matches) do
           next executable ? with_mock_executable(dir, platform: platform, &block) : yield unless stub_exe_dir
 
@@ -226,6 +260,14 @@ module Venetian
       end
     end
 
+    def with_tmpdir(&)
+      Dir.mktmpdir do |dir|
+        File.join(dir, "Jane O'Doe (x86) & Jürgen")
+            .tap { |subdir| FileUtils.mkdir_p(subdir) }
+            .then(&)
+      end
+    end
+
     def with_mock_executable(path, platform: local_platform, dir_only: false, &)
       FileUtils.mkdir_p(File.join(path, platform.to_s))
       if dir_only
@@ -233,10 +275,15 @@ module Venetian
         return
       end
 
-      File.join(path, platform.to_s, "node")
-          .tap { |exe_path| FileUtils.touch(exe_path) }
-          .tap { |exe_path| FileUtils.chmod(0o755, exe_path) }
-          .then(&)
+      create_fake_node_in(Pathname.new(path).join(platform.to_s)).to_s.then(&)
+    end
+
+    def create_fake_node_in(dir)
+      if Gem.win_platform?
+        dir.join("node.exe").tap { |path| FileUtils.cp(File.expand_path("../fixtures/print_args.exe", __dir__), path) }
+      else
+        dir.join("node").tap { |path| path.write("#!/bin/sh\nprintf '%s\\n' \"$@\"\n", perm: 0o755) }
+      end
     end
 
     def stubbing_exe_dir(dir = nil, &)
@@ -244,7 +291,7 @@ module Venetian
     end
 
     def local_platform
-      Gem::Platform.local.dup.tap { |platform| platform.version = nil }
+      Upstream::NATIVE_PLATFORMS.keys.detect { |platform| Gem::Platform.local =~ platform }
     end
 
     def with_stubs(&)
