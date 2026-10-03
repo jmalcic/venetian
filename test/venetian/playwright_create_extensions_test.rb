@@ -29,6 +29,13 @@ module Venetian
       end
     end
 
+    test "does not modify the options passed in" do
+      with_stubbed_path do
+        assert_equal "/bundled/playwright /bundled/package/cli.js",
+                     TestPlaywrightCreate.new({ browser_type: :chromium }.freeze).playwright_cli_executable_path
+      end
+    end
+
     private
 
     def with_stubbed_path(error: false, &)
