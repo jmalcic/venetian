@@ -6,7 +6,7 @@ require "venetian/executable"
 require "venetian/browser_installer"
 require "venetian/gemspec"
 
-module Venetian
+module Venetian # :nodoc:
   class << self
     attr_accessor :auto_install_dependencies
   end
