@@ -48,6 +48,14 @@ module Venetian
       assert_nil @test_case.venetian_browser_type
     end
 
+    BrowserRunnerExtensions::ALTERNATIVE_DRIVER_OPTIONS.each do |option|
+      test "does not set browser type when #{option} given" do
+        @test_case.driven_by(:playwright, options: { option => "/elsewhere" })
+
+        assert_nil @test_case.venetian_browser_type
+      end
+    end
+
     test "converts browser type to symbol" do
       @test_case.driven_by(:playwright, options: { browser_type: "firefox" })
 
