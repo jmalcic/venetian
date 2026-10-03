@@ -19,7 +19,7 @@ jobs:
         ruby:
           - '3.3'
           - '3.4'
-          - '4.0.2'
+          - '4.0'
 
     steps:
       - uses: actions/checkout@v7
@@ -32,3 +32,26 @@ jobs:
           bundler-cache: true
       - name: Run the default task
         run: bundle exec rake
+
+  windows:
+    runs-on: windows-latest
+    name: Windows command quoting (Ruby ${{ matrix.ruby }})
+    strategy:
+      matrix:
+        ruby:
+          - '3.3'
+          - '4.0'
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - name: Run the command quoting tests
+        run: bundle exec rake test
+        env:
+          N: /cli_command/

@@ -118,7 +118,12 @@ module Venetian
 
       # Returns the base command as a single string, as expected by +:playwright_cli_executable_path+.
       def cli_command
-        base_command.shelljoin
+        if Gem.win_platform?
+          base_command.collect { |arg| %("#{arg}") }
+                      .join(" ")
+        else
+          base_command.shelljoin
+        end
       end
 
       private
