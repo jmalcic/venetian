@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "playwright"
+require "playwright/version"
 
 module Venetian
   # # \Upstream
