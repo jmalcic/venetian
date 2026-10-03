@@ -23,6 +23,14 @@ module Venetian
       end
     end
 
+    test "core loads without Playwright" do
+      assert_loads <<~RUBY
+        require "venetian/core"
+        abort "Playwright loaded" if defined?(Playwright::Channel)
+        abort "missing installer" unless defined?(Venetian::BrowserInstaller)
+      RUBY
+    end
+
     test "full entry point loads when Rails namespace exists without railties" do
       assert_loads <<~RUBY
         module Rails; end
