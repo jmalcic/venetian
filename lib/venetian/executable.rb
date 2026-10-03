@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "shellwords"
+
 module Venetian
   # # \Executable
   #
@@ -112,6 +114,11 @@ module Venetian
       # Returns the base command to execute Playwright.
       def base_command
         [path, File.join(File.dirname(path), "package", "cli.js")]
+      end
+
+      # Returns the base command as a single string, as expected by +:playwright_cli_executable_path+.
+      def cli_command
+        base_command.shelljoin
       end
 
       private

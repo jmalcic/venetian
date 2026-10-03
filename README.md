@@ -38,9 +38,37 @@ Capybara.register_driver :playwright do |app|
 end
 ```
 
+### Using `playwright-ruby-client` without Capybara
+
+Require the Capybara-free entry point instead, either in your Gemfile if you use `Bundler.require`:
+
+```ruby
+gem "venetian", require: "venetian/playwright"
+```
+
+Or directly:
+
+```ruby
+require "venetian/playwright"
+```
+
+Then use `Venetian.start` in place of `Playwright.create`. It takes the same arguments, with the bundled executable as the default
+`:playwright_cli_executable_path`. Browsers aren't installed automatically here, so install them first, either with
+the [Rake task](#installing-browsers-manually) or `Venetian::BrowserInstaller.install`:
+
+```ruby
+Venetian::BrowserInstaller.install(:chromium)
+
+Venetian.start do |playwright|
+  playwright.chromium.launch do |browser|
+    # ...
+  end
+end
+```
+
 ### Automatic browser and dependency installation
 
-The gem will automatically install a browser and dependencies for you before attempting to use it.
+With Capybara or Rails system tests, the gem will automatically install a browser and dependencies for you before attempting to use it.
 Browsers are installed to `$XDG_CACHE_HOME/ms-playwright` on Linux, `~/Library/Caches/ms-playwright` on macOS, 
 and `%LOCALAPPDATA%\ms-playwright` on Windows. In CI, you will want to 
 [cache this directory](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching) 
@@ -60,7 +88,7 @@ this is handled automatically by installing all required browsers before disabli
 ### Installing browsers manually
 
 If you can't rely on automatic installation, you can use the included Rake task to install browsers.
-With Rails this is included automatically when the gem is required.
+With Rails this is included automatically when `venetian` is required (but not `venetian/playwright`).
 
 ```bash
 $ RAILS_ENV=test rails venetian:install

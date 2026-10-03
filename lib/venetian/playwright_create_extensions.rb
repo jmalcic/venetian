@@ -3,7 +3,10 @@
 module Venetian
   module PlaywrightCreateExtensions # :nodoc:
     def initialize(options = {}, *)
-      super({ playwright_cli_executable_path: Executable.base_command.shelljoin }.merge(options), *)
+      unless options[:playwright_cli_executable_path]
+        options = options.merge(playwright_cli_executable_path: Executable.cli_command)
+      end
+      super
     end
   end
 end
