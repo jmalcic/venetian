@@ -11,8 +11,12 @@ module Venetian
     class Executor # :nodoc:
       public :system, :exec
 
-      def capture(*command)
-        Open3.capture2e(*command)
+      def capture(*command, **)
+        Open3.capture2e(*command, **)
+      end
+
+      def run(*command, **)
+        Process.wait2(Process.spawn(*command, **)).last
       end
     end
 
@@ -180,18 +184,16 @@ module Venetian
         exe_path
       end
 
-      # Executes the Playwright executable with the given arguments.
+      # Executes the Playwright executable with the given arguments, replacing the current process.
       def execute(*args, echo: true, exception: true, **)
         [*base_command, *args].then do |command|
-          # due to mysterious Windows behavior; see equivalent in `tailwindcss-ruby`
-          next system(*args, exception:, echo:) if Gem.win_platform?
-
           puts command.shelljoin if echo
-          begin
-            executor.exec(*command)
-          rescue StandardError
-            exception ? raise : false
-          end
+          # exec misbehaves on Windows (see equivalent in `tailwindcss-ruby`), so run Playwright and exit likewise
+          exit executor.run(*command, **).exitstatus if Gem.win_platform?
+
+          executor.exec(*command, **)
+        rescue StandardError
+          exception ? raise : false
         end
       end
 
@@ -199,16 +201,15 @@ module Venetian
       def system(*args, echo: true, exception: true, **)
         [*base_command, *args].then do |command|
           puts command.shelljoin if echo
-          executor.system(*command,
-                          exception:, **{ out: echo ? nil : File::NULL, err: echo ? nil : File::NULL }.compact)
+          executor.system(*command, exception:, **(echo ? {} : { out: File::NULL, err: File::NULL }), **)
         end
       end
 
       # Runs the Playwright executable with the given arguments, returning its combined output and status.
-      def capture(*args, echo: true)
+      def capture(*args, echo: true, **)
         [*base_command, *args].then do |command|
           puts command.shelljoin if echo
-          executor.capture(*command).tap do |output, _|
+          executor.capture(*command, **).tap do |output, _|
             puts output if echo
           end
         end

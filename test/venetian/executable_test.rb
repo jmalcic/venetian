@@ -77,6 +77,32 @@ module Venetian
             assert_mock @executor_mock
           end
 
+          test "system passes options to executor" do
+            mocking_exe_directory do
+              @executor_mock.expect_system(true, ["foo"], exception: true, out: File::NULL, err: "log",
+                                                          chdir: "/elsewhere")
+
+              with_stubs do
+                assert Executable.system "foo", echo: false, err: "log", chdir: "/elsewhere"
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "capture passes options to executor" do
+            mocking_exe_directory do
+              @executor_mock.expect(:capture, ["output\n", :status], [*Executable.base_command, "foo"],
+                                    chdir: "/elsewhere")
+
+              with_stubs do
+                assert_equal ["output\n", :status], Executable.capture("foo", echo: false, chdir: "/elsewhere")
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
           test "capture calls executor and prints command and output" do
             mocking_exe_directory do
               @executor_mock.expect(:capture, ["output\n", :status], [*Executable.base_command, "foo"])
@@ -127,16 +153,29 @@ module Venetian
             assert_mock @executor_mock
           end
 
-          test "execute calls system on Windows" do
+          test "execute runs and exits with its status on Windows" do
             mocking_exe_directory do
-              @executor_mock.expect_system(true, ["foo"], exception: true)
+              @executor_mock.expect(:run, Data.define(:exitstatus).new(23), [*Executable.base_command, "foo"])
 
               Gem.stub :win_platform?, true do
                 with_stubs do
-                  assert_output "#{Executable.base_command.shelljoin} foo\n" do
-                    assert Executable.execute "foo"
+                  exception = assert_raises SystemExit do
+                    Executable.execute "foo", echo: false
                   end
+                  assert_equal 23, exception.status
                 end
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "execute passes options to exec" do
+            mocking_exe_directory do
+              @executor_mock.expect(:exec, true, [*Executable.base_command, "foo"], chdir: "/elsewhere")
+
+              with_stubs do
+                assert Executable.execute "foo", echo: false, chdir: "/elsewhere"
               end
             end
 
@@ -429,10 +468,6 @@ module Venetian
       else
         dir.join("node").tap { |path| path.write("#!/bin/sh\nprintf '%s\\n' \"$@\"\n", perm: 0o755) }
       end
-    end
-
-    def fixtures_dir
-      Pathname.new(__dir__).join("..", "fixtures")
     end
 
     def stubbing_exe_dir(dir = nil, &)

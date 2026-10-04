@@ -49,6 +49,10 @@ module Minitest
 
     private
 
+    def fixtures_dir
+      Pathname.new(__dir__).join("fixtures")
+    end
+
     def assert_raises(exception_class, message = nil, match: nil, &block)
       super(exception_class, *message, &block).tap do |exception|
         assert_match match, exception.message if match
