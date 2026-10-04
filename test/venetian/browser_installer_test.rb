@@ -15,6 +15,10 @@ module Venetian
       def expect_install(*args)
         expect(:system, true, [*BASE_COMMAND, "install", *args], exception: true, out: File::NULL, err: File::NULL)
       end
+
+      def expect_install_deps(*args)
+        expect(:system, true, [*BASE_COMMAND, "install-deps", *args], exception: true, out: File::NULL, err: File::NULL)
+      end
     end
 
     module Stubbing
@@ -24,6 +28,18 @@ module Venetian
         Executable.stub(:base_command, error ? -> { raise error } : BASE_COMMAND) do
           Executable.stub(:executor, @executor_mock, &)
         end
+      end
+
+      def with_env(**values)
+        original = ENV.to_h.slice(*values.keys.collect(&:to_s))
+        values.each { |name, value| ENV[name.to_s] = value&.to_s }
+        yield
+      ensure
+        values.each_key { |name| ENV[name.to_s] = original[name.to_s] }
+      end
+
+      def with_read_only_browsers_path(&)
+        BrowserInstaller.stub(:browsers_path_writable?, false, &)
       end
     end
 
@@ -152,6 +168,208 @@ module Venetian
       end
     end
 
+    module Reuse
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
+          test "install remembers installed browsers" do
+            @executor_mock.expect_install("firefox")
+            with_stubs do
+              2.times { BrowserInstaller.install(:firefox, install_dependencies: false) }
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "install installs only dependencies for installed browsers" do
+            @executor_mock.expect_install("firefox")
+            @executor_mock.expect_install_deps("firefox")
+            with_stubs do
+              BrowserInstaller.install(:firefox, install_dependencies: false)
+              BrowserInstaller.install(:firefox, install_dependencies: true)
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "install skips browsers when browsers path is read-only" do
+            with_stubs do
+              with_read_only_browsers_path do
+                BrowserInstaller.install(:firefox, install_dependencies: false)
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "install installs only dependencies when browsers path is read-only" do
+            @executor_mock.expect_install_deps("firefox")
+            with_stubs do
+              with_read_only_browsers_path do
+                BrowserInstaller.install(:firefox, install_dependencies: true)
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "no dependencies to install after installing them" do
+            @executor_mock.expect_dry_run MISSING_OUTPUT
+            @executor_mock.expect_install("--with-deps")
+            with_stubs do
+              Venetian.with auto_install_dependencies: true do
+                BrowserInstaller.install
+              end
+
+              refute_predicate BrowserInstaller, :dependencies_to_install?
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "install serializes concurrent installations" do
+            installing = Queue.new
+            overlapped = false
+            install = lambda do |*, **|
+              overlapped ||= !installing.empty?
+              installing << true
+              sleep 0.1
+              installing.pop
+            end
+
+            with_stubs do
+              Venetian.stub(:system, install) do
+                2.times.collect { Thread.new { BrowserInstaller.install(install_dependencies: true) } }.each(&:join)
+              end
+            end
+
+            refute overlapped
+          end
+        end
+      end
+    end
+
+    module BrowsersPath
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
+          test "browsers path from env var" do
+            assert_equal @browsers_path, BrowserInstaller.browsers_path
+          end
+
+          test "browsers path keeps relative env var" do
+            with_env PLAYWRIGHT_BROWSERS_PATH: "browsers" do
+              assert_equal Pathname("browsers"), BrowserInstaller.browsers_path
+            end
+          end
+
+          test "expanded browsers path resolves relative env var against init cwd" do
+            with_env PLAYWRIGHT_BROWSERS_PATH: "browsers", INIT_CWD: @browsers_path do
+              assert_equal @browsers_path.join("browsers"), BrowserInstaller.expanded_browsers_path
+            end
+          end
+
+          test "expanded browsers path resolves relative env var against working directory without init cwd" do
+            with_env PLAYWRIGHT_BROWSERS_PATH: "browsers", INIT_CWD: nil do
+              Dir.chdir(@browsers_path) do
+                assert_equal Pathname.pwd.join("browsers"), BrowserInstaller.expanded_browsers_path
+              end
+            end
+          end
+
+          test "browsers path inside driver package when env var is 0" do
+            with_env PLAYWRIGHT_BROWSERS_PATH: 0 do
+              with_stubs do
+                assert_equal Pathname("/bundled/package/.local-browsers"), BrowserInstaller.browsers_path
+              end
+            end
+          end
+
+          test "browsers path in XDG cache on Linux" do
+            with_env PLAYWRIGHT_BROWSERS_PATH: nil, XDG_CACHE_HOME: @browsers_path do
+              on_platform "x86_64-linux" do
+                assert_equal @browsers_path.join("ms-playwright"), BrowserInstaller.browsers_path
+              end
+            end
+          end
+
+          test "browsers path in home cache on Linux without XDG cache" do
+            with_env PLAYWRIGHT_BROWSERS_PATH: nil, XDG_CACHE_HOME: nil do
+              on_platform "x86_64-linux" do
+                assert_equal Pathname(Dir.home).join(".cache", "ms-playwright"), BrowserInstaller.browsers_path
+              end
+            end
+          end
+
+          test "browsers path in caches on macOS" do
+            with_env PLAYWRIGHT_BROWSERS_PATH: nil do
+              on_platform "arm64-darwin" do
+                assert_equal Pathname(Dir.home).join("Library", "Caches", "ms-playwright"),
+                             BrowserInstaller.browsers_path
+              end
+            end
+          end
+
+          test "browsers path in local app data on Windows" do
+            with_env PLAYWRIGHT_BROWSERS_PATH: nil, LOCALAPPDATA: @browsers_path do
+              Gem.stub :win_platform?, true do
+                assert_equal @browsers_path.join("ms-playwright"), BrowserInstaller.browsers_path
+              end
+            end
+          end
+
+          test "browsers path writable" do
+            assert_predicate BrowserInstaller, :browsers_path_writable?
+            assert_empty @browsers_path.children
+          end
+
+          test "browsers path writable when it does not exist yet" do
+            with_env PLAYWRIGHT_BROWSERS_PATH: @browsers_path.join("missing", "ms-playwright") do
+              assert_predicate BrowserInstaller, :browsers_path_writable?
+            end
+          end
+
+          test "browsers path not writable when read-only" do
+            skip_unless_permissions_apply
+
+            with_read_only @browsers_path do
+              refute_predicate BrowserInstaller, :browsers_path_writable?
+            end
+          end
+
+          test "browsers path not writable when links are read-only" do
+            skip_unless_permissions_apply
+
+            with_read_only @browsers_path.join(BrowserInstaller::LINKS_DIRECTORY).tap(&:mkpath) do
+              refute_predicate BrowserInstaller, :browsers_path_writable?
+            end
+          end
+        end
+
+        private
+
+        def skip_unless_permissions_apply
+          skip "Permissions don't apply to root" if Process.uid.zero?
+          skip "Permissions are ACLs on Windows" if Gem.win_platform?
+        end
+
+        def with_read_only(path)
+          path.chmod(0o555)
+          yield
+        ensure
+          path.chmod(0o755)
+        end
+
+        def on_platform(platform, &)
+          Gem.stub :win_platform?, false do
+            Gem::Platform.stub(:local, Gem::Platform.new(platform), &)
+          end
+        end
+      end
+    end
+
     module DependencyDetection
       module Tests
         extend ActiveSupport::Concern
@@ -251,14 +469,22 @@ module Venetian
 
     include Stubbing
     include Installation::Tests
+    include Reuse::Tests
+    include BrowsersPath::Tests
     include DependencyDetection::Tests
 
     setup do
       @executor_mock = ExecutorMock.new
+      @browsers_path = Pathname(Dir.mktmpdir)
+      @original_browsers_path = ENV.fetch("PLAYWRIGHT_BROWSERS_PATH", nil)
+      ENV["PLAYWRIGHT_BROWSERS_PATH"] = @browsers_path.to_path
     end
 
     teardown do
+      ENV["PLAYWRIGHT_BROWSERS_PATH"] = @original_browsers_path
+      @browsers_path.rmtree
       BrowserInstaller.send(:dependencies_to_install).clear
+      BrowserInstaller.send(:browsers_to_install).clear
     end
   end
 end

@@ -81,9 +81,12 @@ so dependency installation happens only if a compatible package manager is found
 Depending on what you're doing, you may not need to install dependencies, 
 but if you do and your distro is unsupported, you will need to work out what you need and deal with that first.
 
-When parallelizing tests, there's also the issue of multiple processes all trying to acquire the package manager lock:
-if you use Rails system tests with `ActionDispatch::SystemTestCase`,
-this is handled automatically by installing all required browsers before disabling auto-installation and then forking.
+Browsers already installed (e.g. from a restored cache) are left alone. If the browsers directory
+(or `PLAYWRIGHT_BROWSERS_PATH`, if set) is read-only, as with a prepopulated cache, browsers aren't installed at all,
+since Playwright can't take its lock there, though dependencies still are if needed.
+When parallelizing tests, there's also the issue of multiple processes all trying to acquire the package manager lock,
+so installations are serialized across processes. On top of this, if you use Rails system tests with `ActionDispatch::SystemTestCase`,
+all required browsers are installed before disabling auto-installation and then forking.
 
 Browsers aren't installed automatically if you pass your own `:playwright_cli_executable_path`, or connect to a server with
 `:playwright_server_endpoint_url` or `:browser_server_endpoint_url`, since the bundled executable won't be the one running them.
