@@ -12,7 +12,8 @@ module Venetian
     end
 
     prepended do
-      class_attribute :venetian_browser_type, default: :chromium, instance_writer: false
+      # Set by +driven_by+, so classes using a driver registered under another name are still included.
+      class_attribute :venetian_browser_type, default: nil, instance_writer: false
 
       if respond_to?(:parallelize_before_fork)
         parallelize_before_fork { venetian_before_fork }
@@ -49,7 +50,7 @@ module Venetian
 
       def venetian_browsers
         Minitest::Runnable.runnables
-                          .select { |klass| klass < ActionDispatch::SystemTestCase && klass.driver&.name == :playwright }
+                          .select { |klass| klass < ActionDispatch::SystemTestCase }
                           .filter_map(&:venetian_browser_type)
                           .uniq
       end

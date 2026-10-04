@@ -90,6 +90,8 @@ all required browsers are installed before disabling auto-installation and then 
 
 Browsers aren't installed automatically if you pass your own `:playwright_cli_executable_path`, or connect to a server with
 `:playwright_server_endpoint_url` or `:browser_server_endpoint_url`, since the bundled executable won't be the one running them.
+Nor are they if you pass `:executablePath`, or a `:channel` for a system-wide browser like `chrome` or `msedge`
+(install these with e.g. `playwright install chrome`), but other channels are installed instead of the browser type.
 You can also turn installation off with `Venetian.auto_install_browsers = false`, or just dependency installation with
 `Venetian.auto_install_dependencies = false`.
 

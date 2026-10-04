@@ -18,6 +18,12 @@ module Venetian
       driven_by :playwright, options: { browser_type: :firefox }
     end
 
+    class NamedFakeSystemTestCase < ActionDispatch::SystemTestCase
+      prepend SystemTestCaseExtension
+
+      driven_by :playwright, options: { name: :webkit_driver, browser_type: :webkit }
+    end
+
     class SystemTestCaseWithoutDriver < ActionDispatch::SystemTestCase
       prepend SystemTestCaseExtension
     end
@@ -79,6 +85,18 @@ module Venetian
 
         assert_mock @install_mock
         refute Venetian.auto_install_browsers
+      end
+    end
+
+    test "installs browsers for drivers registered under another name" do
+      Minitest::Runnable.stub :runnables, [FakeSystemTestCase, NamedFakeSystemTestCase] do
+        @install_mock.expect(:call, true, [:chromium])
+                     .expect(:call, true, [:webkit])
+        with_stubs do
+          @test_case.install_playwright_browsers
+        end
+
+        assert_mock @install_mock
       end
     end
 

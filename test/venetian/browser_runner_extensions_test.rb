@@ -17,6 +17,7 @@ module Venetian
         self.class.teardown { Venetian.auto_install_browsers = value }
       end
       @install_mock = Minitest::Mock.new
+      @runner = FakeBrowserRunner.new
     end
 
     test "start installs the configured browser" do
@@ -31,7 +32,7 @@ module Venetian
     test "start defaults to chromium when no browser type given" do
       @install_mock.expect :call, true, [:chromium]
       with_stubs do
-        FakeBrowserRunner.new.start
+        @runner.start
       end
 
       assert_mock @install_mock
@@ -41,7 +42,7 @@ module Venetian
       Venetian.auto_install_browsers = false
 
       with_stubs error: true do
-        FakeBrowserRunner.new.start
+        @runner.start
       end
     end
 
@@ -51,6 +52,29 @@ module Venetian
 
     test "browser to preinstall defaults to chromium" do
       assert_equal :chromium, BrowserRunnerExtensions.browser_to_preinstall_from({})
+    end
+
+    test "start skips install when auto install browsers is disabled after construction" do
+      Venetian.auto_install_browsers = false
+
+      with_stubs error: true do
+        @runner.start
+      end
+    end
+
+    test "browser to preinstall is the configured channel" do
+      assert_equal :"chromium-tip-of-tree",
+                   BrowserRunnerExtensions.browser_to_preinstall_from(channel: "chromium-tip-of-tree")
+    end
+
+    %w[chrome chrome-beta msedge msedge-dev].each do |channel|
+      test "no browser to preinstall for system channel #{channel}" do
+        assert_nil BrowserRunnerExtensions.browser_to_preinstall_from(channel: channel)
+      end
+    end
+
+    test "no browser to preinstall when executable path given" do
+      assert_nil BrowserRunnerExtensions.browser_to_preinstall_from(executablePath: "/usr/bin/chromium")
     end
 
     BrowserRunnerExtensions::ALTERNATIVE_DRIVER_OPTIONS.each do |option|
