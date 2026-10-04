@@ -207,6 +207,54 @@ module Venetian
             end
           end
 
+          test "cli command raises for a path containing percent signs on Windows" do
+            Executable.stub(:base_command, ["C:/Users/%USERNAME%/node.exe", "C:/Users/%USERNAME%/package/cli.js"]) do
+              Gem.stub(:win_platform?, true) do
+                assert_raises Executable::UnsupportedPathError, match: %r{C:/Users/%USERNAME%/node\.exe} do
+                  Executable.cli_command
+                end
+              end
+            end
+          end
+
+          ["C:/Users/100%/node.exe", "C:/Users/%1% % A% %A-B%/node.exe", "C:\\Users\\%USERNAME%\\node.exe"]
+            .each do |exe_path|
+              test "cli command quotes #{exe_path} on Windows as cmd.exe won't run it" do
+                Executable.stub(:base_command, [exe_path, "C:/package/cli.js"]) do
+                  Gem.stub(:win_platform?, true) do
+                    assert_equal %("#{exe_path}" "C:/package/cli.js"), Executable.cli_command
+                  end
+                end
+              end
+            end
+
+          test "cli command raises for a variable reference after an escaped character on Windows" do
+            Executable.stub(:base_command, ["C:\\Users\\x%USERNAME%\\node.exe", "C:/package/cli.js"]) do
+              Gem.stub(:win_platform?, true) do
+                assert_raises Executable::UnsupportedPathError do
+                  Executable.cli_command
+                end
+              end
+            end
+          end
+
+          test "cli command escapes percent signs for a POSIX shell" do
+            Executable.stub(:base_command, ["/home/100%/node", "/home/100%/package/cli.js"]) do
+              Gem.stub(:win_platform?, false) do
+                assert_equal "/home/100\\%/node /home/100\\%/package/cli.js", Executable.cli_command
+              end
+            end
+          end
+
+          test "cli command runs from a path with percent signs that aren't variable references" do
+            mocking_exe_directory dir_name: "100% %1% % A%" do
+              assert_pattern do
+                capture_subprocess_io { system("#{Executable.cli_command} run-driver") } =>
+                  ["#{Executable.base_command.last}\nrun-driver\n",]
+              end
+            end
+          end
+
           test "cli command runs from a path needing quoting" do
             mocking_exe_directory do
               assert_pattern do
@@ -349,8 +397,8 @@ module Venetian
     private
 
     def mocking_exe_directory(platform: local_platform, executable: true, plaform_matches: true,
-                              stub_exe_dir: true, &block)
-      with_tmpdir do |dir|
+                              stub_exe_dir: true, dir_name: "Jane O'Doe (x86) & Jürgen", &block)
+      with_tmpdir(dir_name) do |dir|
         Gem::Platform.stub(:match_gem?, plaform_matches) do
           next executable ? with_mock_executable(dir, platform: platform, &block) : yield unless stub_exe_dir
 
@@ -361,9 +409,9 @@ module Venetian
       end
     end
 
-    def with_tmpdir(&)
+    def with_tmpdir(name, &)
       Dir.mktmpdir do |dir|
-        Pathname.new(dir).join("Jane O'Doe (x86) & Jürgen").tap(&:mkpath).then(&)
+        Pathname.new(dir).join(name).tap(&:mkpath).then(&)
       end
     end
 

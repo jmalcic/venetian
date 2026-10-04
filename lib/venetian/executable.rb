@@ -93,6 +93,37 @@ module Venetian
       end
     end
 
+    # # Unsupported Path Error
+    #
+    # Raised on Windows when the path to the Playwright executable contains an environment variable reference such as
+    # +%USERNAME%+, as Ruby would then run the command with +cmd.exe+, which expands it.
+    class UnsupportedPathError < StandardError
+      def initialize(path) # :nodoc:
+        super(<<~MSG)
+          Cannot run Playwright from #{path} as Windows would expand the environment variable references in its path.
+
+          Set #{INSTALL_DIR_ENV_VAR} to a directory without them (e.g. %NAME%) containing your Playwright executable.
+        MSG
+      end
+    end
+
+    module Command # :nodoc:
+      TOKEN_PATTERN = /\\.?|%[A-Za-z_][A-Za-z0-9_]*.?|./m
+      VARIABLE_REFERENCE_PATTERN = /\A%[A-Za-z_][A-Za-z0-9_]*%\z/
+
+      def self.shelljoin(command)
+        return command.shelljoin unless Gem.win_platform?
+
+        command.collect { |arg| %("#{arg}") }
+               .join(" ")
+               .tap { |string| raise UnsupportedPathError, command.first if run_by_cmd?(string) }
+      end
+
+      def self.run_by_cmd?(string)
+        string.scan(TOKEN_PATTERN).any? { |token| token.match?(VARIABLE_REFERENCE_PATTERN) }
+      end
+    end
+
     module Validations # :nodoc:
       private
 
@@ -190,12 +221,7 @@ module Venetian
 
       # Returns the base command as a single string, as expected by +:playwright_cli_executable_path+.
       def cli_command
-        if Gem.win_platform?
-          base_command.collect { |arg| %("#{arg}") }
-                      .join(" ")
-        else
-          base_command.shelljoin
-        end
+        Command.shelljoin(base_command)
       end
 
       private
