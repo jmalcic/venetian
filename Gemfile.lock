@@ -3,7 +3,7 @@ PATH
   specs:
     venetian (0.3.0)
       capybara-playwright-driver (>= 0.5)
-      playwright-ruby-client (>= 1.63.0)
+      playwright-ruby-client (~> 1.63.0)
 
 GEM
   remote: https://rubygems.org/

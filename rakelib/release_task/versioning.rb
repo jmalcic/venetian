@@ -18,11 +18,15 @@ class ReleaseTask
     def patch
       gsub version_file, /(?<=\sVERSION = )".+"/, "\"#{patched_version_string}\""
       gsub version_file, /(?<=\sCOMPATIBLE_PLAYWRIGHT_VERSION = )".+"/, "\"#{Playwright::COMPATIBLE_PLAYWRIGHT_VERSION}\""
-      gsub gemspec_file, /(?<="playwright-ruby-client", ">= )#{Gem::Version::VERSION_PATTERN}/, Playwright::VERSION
+      gsub gemspec_file, /(?<="playwright-ruby-client", ).+$/, client_requirement
       system Hash("BUNDLE_FROZEN" => "false"), "bundle", "install", exception: true
       system "git", "commit", version_file, gemspec_file, "Gemfile.lock", "-m",
              "Bump version to #{patched_version_string}", exception: true
       system "git", "push", exception: true
+    end
+
+    def client_requirement
+      %("~> #{Gem::Version.new(Playwright::VERSION).segments.first(2).join(".")}.0")
     end
 
     def released_playwright_version

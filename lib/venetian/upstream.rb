@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "playwright/version"
+require "venetian/version"
 
 module Venetian
   # # \Upstream
@@ -43,7 +43,7 @@ module Venetian
 
     # Returns the URL to download the playwright-core npm package containing the driver's JS sources.
     def self.playwright_core_url
-      "#{NPM_REGISTRY_URL}/playwright-core/-/playwright-core-#{Playwright::COMPATIBLE_PLAYWRIGHT_VERSION}.tgz"
+      "#{NPM_REGISTRY_URL}/playwright-core/-/playwright-core-#{COMPATIBLE_PLAYWRIGHT_VERSION}.tgz"
     end
 
     # Returns the gemspec files for the base gem.
