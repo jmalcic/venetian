@@ -9,3 +9,6 @@
 
 # Platform-specific Playwright driver binaries (fetched at release time)
 exe/*/
+
+# Lockfile for testing against other Rails versions
+/Gemfile.rails.lock

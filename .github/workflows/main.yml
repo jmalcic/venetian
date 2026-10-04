@@ -33,6 +33,32 @@ jobs:
       - name: Run the default task
         run: bundle exec rake
 
+  rails:
+    runs-on: ubuntu-latest
+    name: Rails ${{ matrix.rails }}
+    strategy:
+      matrix:
+        rails:
+          - '7.1'
+          - '7.2'
+          - '8.0'
+    env:
+      BUNDLE_LOCKFILE: Gemfile.rails.lock
+      RAILS_VERSION: ~> ${{ matrix.rails }}.0
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler: latest
+          bundler-cache: true
+      - name: Run the tests
+        run: bundle exec rake test
+
   windows:
     runs-on: windows-latest
     name: Windows command quoting (Ruby ${{ matrix.ruby }})

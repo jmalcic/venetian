@@ -96,6 +96,14 @@ module Venetian
       end
     end
 
+    test "registers pre-fork hook on this Rails version" do
+      if ActiveSupport::TestCase.respond_to?(:parallelize_before_fork)
+        assert_equal FakeSystemTestCase, ActiveSupport::Testing::Parallelization.before_fork_hooks.first.binding.receiver
+      else
+        assert_operator ActiveSupport::Testing::Parallelization, :<, SystemTestCaseExtension::ParallelizationExtension
+      end
+    end
+
     private
 
     def with_stubs(&)

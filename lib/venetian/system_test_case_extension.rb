@@ -1,18 +1,27 @@
 # frozen_string_literal: true
 
 module Venetian
-  module SystemTestCaseExtension # :nodoc:
+  module SystemTestCaseExtension # :nodoc: all
     extend ActiveSupport::Concern
+
+    module ParallelizationExtension
+      def start
+        ActionDispatch::SystemTestCase.venetian_before_fork
+        super
+      end
+    end
 
     prepended do
       class_attribute :venetian_browser_type, default: :chromium, instance_writer: false
 
-      parallelize_before_fork do
-        install_playwright_browsers if venetian_preinstall_browsers_before_fork?
+      if respond_to?(:parallelize_before_fork)
+        parallelize_before_fork { venetian_before_fork }
+      else
+        ActiveSupport::Testing::Parallelization.prepend(ParallelizationExtension)
       end
     end
 
-    class_methods do # :nodoc:
+    class_methods do
       def driven_by(driver, options: {}, **)
         super
 
@@ -26,6 +35,10 @@ module Venetian
           browsers.each { |browser| BrowserInstaller.install(browser) }
           Venetian.auto_install_browsers = false
         end
+      end
+
+      def venetian_before_fork
+        install_playwright_browsers if venetian_preinstall_browsers_before_fork?
       end
 
       private
