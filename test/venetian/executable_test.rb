@@ -219,9 +219,124 @@ module Venetian
       end
     end
 
+    module Discovery
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
+          test "returns absolute path to binary for current platform" do
+            mocking_exe_directory do |expected_path|
+              assert_equal expected_path.to_path, Executable.path
+            end
+          end
+
+          test "raises executable not found when directory missing" do
+            stubbing_exe_dir "/does/not/exist/at/all" do
+              assert_raises Executable::ExecutableNotFoundError, match: /directory does not exist/ do
+                Executable.path
+              end
+            end
+          end
+
+          test "raises unsupported platform error when no platform matches" do
+            mocking_exe_directory plaform_matches: false do
+              assert_raises Executable::UnsupportedPlatformError,
+                            match: /Playwright does not support the \S+ platform/ do
+                Executable.path
+              end
+            end
+          end
+
+          test "raises unsupported platform error on musl Linux" do
+            mocking_exe_directory do
+              Gem::Platform.stub(:local, Gem::Platform.new("x86_64-linux-musl")) do
+                assert_raises Executable::UnsupportedPlatformError, match: /does not support the x86_64-linux-musl/ do
+                  Executable.path
+                end
+              end
+            end
+          end
+
+          test "uses install directory from env var on musl Linux" do
+            mocking_exe_directory stub_exe_dir: false do |path|
+              with_mock_executable path.dirname.join("elsewhere") do |exe_path|
+                ENV["VENETIAN_INSTALL_DIR"] = exe_path.dirname.to_path
+
+                Gem::Platform.stub(:local, Gem::Platform.new("x86_64-linux-musl")) do
+                  assert_equal exe_path.to_path, Executable.path
+                end
+              end
+            end
+          end
+
+          test "raises executable not found when platform matches but file is missing" do
+            mocking_exe_directory executable: false do
+              assert_raises Executable::ExecutableNotFoundError, match: /Cannot find the Playwright executable/ do
+                Executable.path
+              end
+            end
+          end
+
+          test "uses install directory from env var" do
+            mocking_exe_directory stub_exe_dir: false do |path|
+              with_mock_executable path.dirname.join("elsewhere") do |exe_path|
+                ENV["VENETIAN_INSTALL_DIR"] = exe_path.dirname.to_path
+
+                assert_equal exe_path.to_path, Executable.path
+              end
+            end
+          end
+
+          test "raises when executable missing from install directory from env var" do
+            mocking_exe_directory stub_exe_dir: false do |path|
+              with_mock_executable path.dirname.join("elsewhere"), dir_only: true do
+                ENV["VENETIAN_INSTALL_DIR"] = path.dirname.join("elsewhere").to_path
+                assert_raises Executable::ExecutableNotFoundError, match: /playwright was not found there/ do
+                  Executable.path
+                end
+              end
+            end
+          end
+
+          test "raises when executable is not executable" do
+            mocking_exe_directory do |exe_path|
+              skip "Windows decides executability by extension" if Gem.win_platform?
+              exe_path.chmod(0o644)
+
+              assert_raises Executable::ExecutableNotFoundError, match: /incomplete: .+ is not executable/ do
+                Executable.path
+              end
+            end
+          end
+
+          test "raises when executable is not a file" do
+            mocking_exe_directory do |exe_path|
+              exe_path.delete
+              exe_path.mkdir
+
+              assert_raises Executable::ExecutableNotFoundError, match: /incomplete: .+ is not a file/ do
+                Executable.path
+              end
+            end
+          end
+
+          test "raises when Playwright package is missing" do
+            mocking_exe_directory do |exe_path|
+              exe_path.dirname.join("package", "cli.js").delete
+
+              assert_raises Executable::ExecutableNotFoundError, match: %r{incomplete: .+/package/cli\.js is missing} do
+                Executable.path
+              end
+            end
+          end
+        end
+      end
+    end
+
     include Running::Tests
     include Execution::Tests
     include CliCommand::Tests
+    include Discovery::Tests
 
     setup do
       @executor_mock = ExecutorMock.new
@@ -229,57 +344,6 @@ module Venetian
 
     teardown do
       ENV.delete("VENETIAN_INSTALL_DIR")
-    end
-
-    test "returns absolute path to binary for current platform" do
-      mocking_exe_directory do |expected_path|
-        assert_equal expected_path, Executable.path
-      end
-    end
-
-    test "raises executable not found when directory missing" do
-      stubbing_exe_dir "/does/not/exist/at/all" do
-        assert_raises Executable::ExecutableNotFoundError, match: /directory does not exist/ do
-          Executable.path
-        end
-      end
-    end
-
-    test "raises unsupported platform error when no platform matches" do
-      mocking_exe_directory plaform_matches: false do
-        assert_raises Executable::UnsupportedPlatformError, match: /Playwright does not support the \S+ platform/ do
-          Executable.path
-        end
-      end
-    end
-
-    test "raises executable not found when platform matches but file is missing" do
-      mocking_exe_directory executable: false do
-        assert_raises Executable::ExecutableNotFoundError, match: /Cannot find the Playwright executable/ do
-          Executable.path
-        end
-      end
-    end
-
-    test "uses install directory from env var" do
-      mocking_exe_directory stub_exe_dir: false do |path|
-        with_mock_executable File.expand_path("#{path}/../elsewhere") do |exe_path|
-          ENV["VENETIAN_INSTALL_DIR"] = File.expand_path("#{exe_path}/..")
-
-          assert_equal exe_path, Executable.path
-        end
-      end
-    end
-
-    test "raises when executable missing from install directory from env var" do
-      mocking_exe_directory stub_exe_dir: false do |path|
-        with_mock_executable File.expand_path("#{path}/../elsewhere"), dir_only: true do
-          ENV["VENETIAN_INSTALL_DIR"] = File.expand_path("#{path}/../elsewhere")
-          assert_raises Executable::ExecutableNotFoundError, match: /playwright was not found there/ do
-            Executable.path
-          end
-        end
-      end
     end
 
     private
@@ -290,7 +354,7 @@ module Venetian
         Gem::Platform.stub(:match_gem?, plaform_matches) do
           next executable ? with_mock_executable(dir, platform: platform, &block) : yield unless stub_exe_dir
 
-          stubbing_exe_dir dir do
+          stubbing_exe_dir dir.to_path do
             executable ? with_mock_executable(dir, platform: platform, &block) : yield
           end
         end
@@ -299,28 +363,28 @@ module Venetian
 
     def with_tmpdir(&)
       Dir.mktmpdir do |dir|
-        File.join(dir, "Jane O'Doe (x86) & Jürgen")
-            .tap { |subdir| FileUtils.mkdir_p(subdir) }
-            .then(&)
+        Pathname.new(dir).join("Jane O'Doe (x86) & Jürgen").tap(&:mkpath).then(&)
       end
     end
 
     def with_mock_executable(path, platform: local_platform, dir_only: false, &)
-      FileUtils.mkdir_p(File.join(path, platform.to_s))
-      if dir_only
-        yield
-        return
-      end
+      path.join(platform.to_s).mkpath
+      return yield if dir_only
 
-      create_fake_node_in(Pathname.new(path).join(platform.to_s)).to_s.then(&)
+      create_fake_node_in(path.join(platform.to_s)).then(&)
     end
 
     def create_fake_node_in(dir)
+      dir.join("package").tap(&:mkpath).join("cli.js").write("")
       if Gem.win_platform?
-        dir.join("node.exe").tap { |path| FileUtils.cp(File.expand_path("../fixtures/print_args.exe", __dir__), path) }
+        dir.join("node.exe").tap { |path| FileUtils.cp(fixtures_dir.join("print_args.exe"), path) }
       else
         dir.join("node").tap { |path| path.write("#!/bin/sh\nprintf '%s\\n' \"$@\"\n", perm: 0o755) }
       end
+    end
+
+    def fixtures_dir
+      Pathname.new(__dir__).join("..", "fixtures")
     end
 
     def stubbing_exe_dir(dir = nil, &)

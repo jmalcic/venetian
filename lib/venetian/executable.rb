@@ -51,11 +51,14 @@ module Venetian
     #
     # Raised when the Playwright executable cannot be found for the current platform.
     class ExecutableNotFoundError < StandardError
-      def initialize(reason, **context) # :nodoc:
+      def initialize(reason, exe_dir: nil, exe_path: nil, cli_path: nil, platform: nil) # :nodoc:
         super(case reason
-              in :directory_missing then directory_missing_message(context[:exe_dir])
-              in :executable_missing then executable_missing_message(context[:exe_dir])
-              else unsupported_platform_message(context[:platform], context[:exe_dir])
+              in :directory_missing then directory_missing_message(exe_dir)
+              in :executable_missing then executable_missing_message(exe_dir)
+              in :missing_platform then unsupported_platform_message(platform, exe_dir)
+              in :not_a_file then incomplete_message(exe_path, "#{exe_path} is not a file")
+              in :not_executable then incomplete_message(exe_path, "#{exe_path} is not executable")
+              in :cli_missing then incomplete_message(exe_path, "#{cli_path} is missing")
               end)
       end
 
@@ -67,6 +70,14 @@ module Venetian
 
       def executable_missing_message(exe_dir)
         "#{INSTALL_DIR_ENV_VAR} is set to #{exe_dir} but playwright was not found there."
+      end
+
+      def incomplete_message(exe_path, problem)
+        <<~MSG
+          The Playwright driver at #{File.dirname(exe_path)} is incomplete: #{problem}.
+
+          Reinstall the gem, or check #{INSTALL_DIR_ENV_VAR} points to a complete driver.
+        MSG
       end
 
       def unsupported_platform_message(platform, exe_dir)
@@ -82,12 +93,58 @@ module Venetian
       end
     end
 
-    class << self
-      # Returns the path to the Node executable. Raises an error if the executable cannot be found.
-      def path
+    module Validations # :nodoc:
+      private
+
+      def validate!
         ensure_exe_dir_exists!
         ensure_gem_platform_supported! unless ENV.key?(INSTALL_DIR_ENV_VAR)
         ensure_executable_exists!
+        ensure_exe_file!
+        ensure_exe_executable!
+        ensure_cli_path_exists!
+      end
+
+      def ensure_exe_dir_exists!
+        raise ExecutableNotFoundError.new(:directory_missing, exe_dir: exe_dir) unless exe_dir_exists?
+      end
+
+      def ensure_gem_platform_supported!
+        raise UnsupportedPlatformError, platform if gem_platforms_unsupported?
+      end
+
+      def ensure_executable_exists!
+        return unless exe_path.nil?
+
+        raise ExecutableNotFoundError.new ENV.key?(INSTALL_DIR_ENV_VAR) ? :executable_missing : :missing_platform,
+                                          exe_dir: exe_dir, platform: platform
+      end
+
+      def ensure_exe_file!
+        return if exe_file?
+
+        raise ExecutableNotFoundError.new(:not_a_file, exe_path: exe_path)
+      end
+
+      def ensure_exe_executable!
+        return if exe_executable?
+
+        raise ExecutableNotFoundError.new(:not_executable, exe_path: exe_path)
+      end
+
+      def ensure_cli_path_exists!
+        return if cli_path_exists?
+
+        raise ExecutableNotFoundError.new(:cli_missing, exe_path: exe_path, cli_path: cli_path_for(exe_path))
+      end
+    end
+
+    extend Validations
+
+    class << self
+      # Returns the path to the Node executable. Raises an error if the executable cannot be found.
+      def path
+        validate!
 
         exe_path
       end
@@ -128,7 +185,7 @@ module Venetian
 
       # Returns the base command to execute Playwright.
       def base_command
-        [path, File.join(File.dirname(path), "package", "cli.js")]
+        path.then { |path| [path, cli_path_for(path)] }
       end
 
       # Returns the base command as a single string, as expected by +:playwright_cli_executable_path+.
@@ -143,21 +200,6 @@ module Venetian
 
       private
 
-      def ensure_exe_dir_exists!
-        raise ExecutableNotFoundError.new(:directory_missing, exe_dir: exe_dir) unless exe_dir_exists?
-      end
-
-      def ensure_gem_platform_supported!
-        raise UnsupportedPlatformError, platform if gem_platforms_unsupported?
-      end
-
-      def ensure_executable_exists!
-        return unless exe_path.nil?
-
-        raise ExecutableNotFoundError.new ENV.key?(INSTALL_DIR_ENV_VAR) ? :executable_missing : :missing_platform,
-                                          exe_dir: exe_dir, platform: platform
-      end
-
       def exe_dir_exists?
         File.directory?(exe_dir)
       end
@@ -166,12 +208,27 @@ module Venetian
         ENV[INSTALL_DIR_ENV_VAR] || DEFAULT_DIR
       end
 
+      def exe_file?
+        File.file?(exe_path.to_s)
+      end
+
+      def exe_executable?
+        File.executable?(exe_path.to_s)
+      end
+
+      def cli_path_exists?
+        File.file?(cli_path_for(exe_path))
+      end
+
+      def cli_path_for(exe_path)
+        File.join(File.dirname(exe_path), "package", "cli.js")
+      end
+
       def exe_path
         return custom_exe_path if ENV.key?(INSTALL_DIR_ENV_VAR)
 
-        Upstream::NATIVE_PLATFORMS.select { |platform, _| Gem::Platform.match_gem?(Gem::Platform.new(platform), gem_name) }
-                                  .collect { |platform, info| File.join(exe_dir, platform, info.executable_name) }
-                                  .detect { |candidate| File.exist?(candidate) }
+        native_platforms.collect { |platform, info| File.join(exe_dir, platform, info.executable_name) }
+                        .detect { |candidate| File.exist?(candidate) }
       end
 
       def custom_exe_path
@@ -183,7 +240,17 @@ module Venetian
       end
 
       def gem_platforms_unsupported?
-        Upstream::NATIVE_PLATFORMS.keys.none? { |platform| Gem::Platform.match_gem?(Gem::Platform.new(platform), gem_name) }
+        native_platforms.none?
+      end
+
+      def native_platforms
+        return {} if musl? # musl isn't supported because official Linux Node binaries require glibc
+
+        Upstream::NATIVE_PLATFORMS.select { |platform, _| Gem::Platform.match_gem?(Gem::Platform.new(platform), gem_name) }
+      end
+
+      def musl?
+        Gem::Platform.local.then { |local| local.os == "linux" && local.version.to_s.start_with?("musl") }
       end
 
       def gem_name

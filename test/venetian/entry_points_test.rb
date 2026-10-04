@@ -6,7 +6,10 @@ module Venetian
   class EntryPointsTest < Minitest::Test
     test "Capybara-free entry point loads on its own" do
       Dir.mktmpdir do |dir|
-        FileUtils.touch(File.join(dir, "node"))
+        Pathname.new(dir).then do |root|
+          root.join("package").tap(&:mkpath).join("cli.js").write("")
+          root.join("node").write("", perm: 0o755)
+        end
 
         assert_loads format(<<~RUBY, dir), Executable::INSTALL_DIR_ENV_VAR => dir
           module Rails
@@ -50,7 +53,8 @@ module Venetian
     end
 
     def load_path_args
-      [File.expand_path("../../lib", __dir__), *dependency_require_paths].collect_concat { |path| ["-I", path] }
+      [Pathname.new(__dir__).join("..", "..", "lib").expand_path.to_path, *dependency_require_paths]
+        .collect_concat { |path| ["-I", path] }
     end
 
     def dependency_require_paths(spec = Gem.loaded_specs.fetch("venetian"), seen = Set.new)
