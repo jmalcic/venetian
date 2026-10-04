@@ -80,6 +80,8 @@ due to e.g. differences between package managers and package names across distro
 so dependency installation happens only if a compatible package manager is found.
 Depending on what you're doing, you may not need to install dependencies, 
 but if you do and your distro is unsupported, you will need to work out what you need and deal with that first.
+On Windows, Firefox also needs the [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist),
+which Playwright doesn't install; you'll get a warning after installation if it's missing.
 
 Browsers already installed (e.g. from a restored cache) are left alone. If the browsers directory
 (or `PLAYWRIGHT_BROWSERS_PATH`, if set) is read-only, as with a prepopulated cache, browsers aren't installed at all,

@@ -23,9 +23,9 @@ module Venetian
 
       def install_into_browsers_path(browser, deps: nil)
         if browsers_to_install.fetch(browser) { browsers_path_writable? }
-          Venetian.system "install", *browser, *("--with-deps" if deps), exception: true, echo: debug?
+          run_installer "install", *browser, *("--with-deps" if deps)
         elsif deps
-          Venetian.system "install-deps", *browser, exception: true, echo: debug?
+          run_installer "install-deps", *browser
         end
         browsers_to_install[browser] = false
         dependencies_to_install[browser] = false if deps
@@ -33,9 +33,7 @@ module Venetian
 
       def browsers_path_writable?
         [expanded_browsers_path, expanded_browsers_path.join(LINKS_DIRECTORY)].all? do |path|
-          Dir.mktmpdir(WRITE_PROBE_PREFIX, path.ascend.find(&:directory?)) do
-            true
-          end
+          Dir.mktmpdir(WRITE_PROBE_PREFIX, path.ascend.find(&:directory?)) { true }
         end
       rescue SystemCallError
         false
@@ -72,6 +70,14 @@ module Venetian
         end
       end
 
+      def run_installer(*args)
+        return Venetian.system(*args, exception: true, echo: true) if debug?
+
+        Executable.capture(*args, echo: false, merge_stderr: false).then do |output, status|
+          raise InstallError, "exit status #{status.exitstatus}\n#{output}".strip unless status.success?
+        end
+      end
+
       def debug?
         ENV.fetch("VENETIAN_DEBUG", nil)
       end
@@ -86,6 +92,10 @@ module Venetian
       def initialize(message = nil)
         super([INSTALL_FAILED_MESSAGE, *message].join(": "))
       end
+
+      def self.wrap(error) # :nodoc:
+        error.is_a?(self) ? error : new(error.message)
+      end
     end
 
     # Installs a browser, unless it and any dependencies are already installed. Playwright skips browsers already in the
@@ -96,7 +106,7 @@ module Venetian
         install_into_browsers_path(browser&.to_s, deps: install_dependencies?(browser, force: install_dependencies))
       end
     rescue StandardError => e
-      raise InstallError, e.message
+      raise InstallError.wrap(e)
     end
 
     LINKS_DIRECTORY = ".links" # :nodoc:

@@ -6,18 +6,21 @@ module Venetian
   class BrowserInstallerTest < Minitest::Test
     BASE_COMMAND = %w[/bundled/node /bundled/package/cli.js].freeze
 
+    Status = Data.define(:success?, :exitstatus)
+
     class ExecutorMock < Minitest::Mock
       def expect_dry_run(output, succeeds: false, browser: nil)
         expect(:capture, [output, Data.define(:success?).new(succeeds)],
                [*BASE_COMMAND, "install-deps", *browser, "--dry-run"])
       end
 
-      def expect_install(*args)
-        expect(:system, true, [*BASE_COMMAND, "install", *args], exception: true, out: File::NULL, err: File::NULL)
+      def expect_install(*args, output: "", succeeds: true)
+        expect(:capture, [output, Status.new(succeeds, succeeds ? 0 : 1)], [*BASE_COMMAND, "install", *args],
+               merge_stderr: false)
       end
 
       def expect_install_deps(*args)
-        expect(:system, true, [*BASE_COMMAND, "install-deps", *args], exception: true, out: File::NULL, err: File::NULL)
+        expect(:capture, ["", Status.new(true, 0)], [*BASE_COMMAND, "install-deps", *args], merge_stderr: false)
       end
     end
 
@@ -39,7 +42,21 @@ module Venetian
       end
 
       def with_read_only_browsers_path(&)
-        BrowserInstaller.stub(:browsers_path_writable?, false, &)
+        skip_unless_permissions_apply
+        with_read_only(@browsers_path, &)
+      end
+
+      def with_read_only(path)
+        mode = path.stat.mode
+        path.chmod(0o555)
+        yield
+      ensure
+        path.chmod(mode) if mode
+      end
+
+      def skip_unless_permissions_apply
+        skip "Permissions don't apply to root" if Process.uid.zero?
+        skip "Permissions are ACLs on Windows" if Gem.win_platform?
       end
     end
 
@@ -81,7 +98,7 @@ module Venetian
 
           test "install raises on command failure" do
             @executor_mock.expect_dry_run MISSING_OUTPUT
-            @executor_mock.expect(:system, nil) do
+            @executor_mock.expect(:capture, nil) do
               raise StandardError, "This is really really really bad"
             end
 
@@ -229,22 +246,22 @@ module Venetian
           end
 
           test "install serializes concurrent installations" do
-            installing = Queue.new
-            overlapped = false
-            install = lambda do |*, **|
-              overlapped ||= !installing.empty?
-              installing << true
-              sleep 0.1
-              installing.pop
-            end
-
-            with_stubs do
-              Venetian.stub(:system, install) do
-                2.times.collect { Thread.new { BrowserInstaller.install(install_dependencies: true) } }.each(&:join)
+            2.times.with_object(Queue.new) do |_i, queue|
+              @executor_mock.expect(:capture, ["", Status.new(true, 0)]) do |*, **|
+                flunk "Installations overlapped" unless queue.empty?
+                queue << true
+                sleep 0.1
+                queue.pop
               end
             end
 
-            refute overlapped
+            with_stubs do
+              2.times
+               .collect { Thread.new { BrowserInstaller.install(install_dependencies: true) } }
+               .each(&:join)
+            end
+
+            assert_mock @executor_mock
           end
         end
       end
@@ -350,21 +367,47 @@ module Venetian
 
         private
 
-        def skip_unless_permissions_apply
-          skip "Permissions don't apply to root" if Process.uid.zero?
-          skip "Permissions are ACLs on Windows" if Gem.win_platform?
-        end
-
-        def with_read_only(path)
-          path.chmod(0o555)
-          yield
-        ensure
-          path.chmod(0o755)
-        end
-
         def on_platform(platform, &)
           Gem.stub :win_platform?, false do
             Gem::Platform.stub(:local, Gem::Platform.new(platform), &)
+          end
+        end
+      end
+    end
+
+    module Diagnostics
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
+          test "install error includes all Playwright output" do
+            @executor_mock.expect_install("--with-deps",
+                                          output: "Downloading Chromium\nFailed to install browsers\nError: EACCES\n",
+                                          succeeds: false)
+
+            with_stubs do
+              assert_raises BrowserInstaller::InstallError,
+                            match: /exit status 1\nDownloading Chromium\nFailed to install browsers\nError: EACCES/ do
+                BrowserInstaller.install(install_dependencies: true)
+              end
+            end
+
+            assert_mock @executor_mock
+          end
+
+          test "install streams output when debugging" do
+            @executor_mock.expect(:system, true, [*BASE_COMMAND, "install", "--with-deps"], exception: true)
+            ENV["VENETIAN_DEBUG"] = "1"
+
+            with_stubs do
+              assert_output "#{[*BASE_COMMAND, "install", "--with-deps"].shelljoin}\n" do
+                BrowserInstaller.install(install_dependencies: true)
+              end
+            end
+
+            assert_mock @executor_mock
+          ensure
+            ENV.delete("VENETIAN_DEBUG")
           end
         end
       end
@@ -471,6 +514,7 @@ module Venetian
     include Installation::Tests
     include Reuse::Tests
     include BrowsersPath::Tests
+    include Diagnostics::Tests
     include DependencyDetection::Tests
 
     setup do

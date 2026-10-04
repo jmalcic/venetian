@@ -11,8 +11,8 @@ module Venetian
     class Executor # :nodoc:
       public :system, :exec
 
-      def capture(*command, **)
-        Open3.capture2e(*command, **)
+      def capture(*command, merge_stderr: true, **)
+        merge_stderr ? Open3.capture2e(*command, **) : Open3.capture2(*command, **)
       end
 
       def run(*command, **)
