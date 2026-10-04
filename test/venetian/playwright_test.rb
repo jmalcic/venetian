@@ -4,13 +4,18 @@ require "test_helper"
 
 module Venetian
   class PlaywrightTest < Minitest::Test
+    BUNDLED_COMMAND = if Gem.win_platform?
+                        '"/bundled/playwright" "/bundled/package/cli.js"'
+                      else
+                        "/bundled/playwright /bundled/package/cli.js"
+                      end
+
     setup do
       @create_mock = Minitest::Mock.new
     end
 
     test "start injects bundled binary when no path given" do
-      @create_mock.expect(:call, :execution, [],
-                          playwright_cli_executable_path: "/bundled/playwright /bundled/package/cli.js")
+      @create_mock.expect(:call, :execution, [], playwright_cli_executable_path: BUNDLED_COMMAND)
 
       with_stubbed_path do
         assert_equal :execution, Venetian.start

@@ -27,9 +27,11 @@ module Venetian
     module Stubbing
       private
 
-      def with_stubs(error: false, &)
-        Executable.stub(:base_command, error ? -> { raise error } : BASE_COMMAND) do
-          Executable.stub(:executor, @executor_mock, &)
+      def with_stubs(error: false, windows: false, &)
+        Gem.stub(:win_platform?, windows) do
+          Executable.stub(:base_command, error ? -> { raise error } : BASE_COMMAND) do
+            Executable.stub(:executor, @executor_mock, &)
+          end
         end
       end
 
@@ -455,10 +457,8 @@ module Venetian
           end
 
           test "dependencies to install on Windows without a dry run" do
-            Gem.stub :win_platform?, true do
-              with_stubs do
-                assert_predicate BrowserInstaller, :dependencies_to_install?
-              end
+            with_stubs windows: true do
+              assert_predicate BrowserInstaller, :dependencies_to_install?
             end
 
             assert_mock @executor_mock

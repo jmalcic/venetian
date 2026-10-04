@@ -8,10 +8,15 @@ module Venetian
       attr_reader :playwright_cli_executable_path, :browser_type
     end
 
+    BUNDLED_COMMAND = if Gem.win_platform?
+                        '"/bundled/playwright" "/bundled/package/cli.js"'
+                      else
+                        "/bundled/playwright /bundled/package/cli.js"
+                      end
+
     test "injects bundled binary when no path given" do
       with_stubbed_path do
-        assert_equal "/bundled/playwright /bundled/package/cli.js",
-                     TestPlaywrightCreate.new({}).playwright_cli_executable_path
+        assert_equal BUNDLED_COMMAND, TestPlaywrightCreate.new({}).playwright_cli_executable_path
       end
     end
 
@@ -31,7 +36,7 @@ module Venetian
 
     test "does not modify the options passed in" do
       with_stubbed_path do
-        assert_equal "/bundled/playwright /bundled/package/cli.js",
+        assert_equal BUNDLED_COMMAND,
                      TestPlaywrightCreate.new({ browser_type: :chromium }.freeze).playwright_cli_executable_path
       end
     end

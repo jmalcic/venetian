@@ -4,14 +4,16 @@ require "test_helper"
 
 module Venetian
   class EntryPointsTest < Minitest::Test
+    EXECUTABLE = Gem.win_platform? ? "node.exe" : "node"
+
     test "Capybara-free entry point loads on its own" do
       Dir.mktmpdir do |dir|
         Pathname.new(dir).then do |root|
           root.join("package").tap(&:mkpath).join("cli.js").write("")
-          root.join("node").write("", perm: 0o755)
+          root.join(EXECUTABLE).write("", perm: 0o755)
         end
 
-        assert_loads format(<<~RUBY, dir), Executable::INSTALL_DIR_ENV_VAR => dir
+        assert_loads format(<<~RUBY, dir, EXECUTABLE), Executable::INSTALL_DIR_ENV_VAR => dir
           module Rails
             class Railtie
               def self.rake_tasks(*) = nil
@@ -21,7 +23,7 @@ module Venetian
           require "venetian/playwright"
           abort "Capybara loaded" if defined?(Capybara)
           abort "Railtie loaded" if defined?(Venetian::Railtie)
-          abort "unexpected command" unless Venetian::Executable.cli_command == "%1$s/node %1$s/package/cli.js"
+          abort "unexpected command" unless Venetian::Executable.base_command == ["%1$s/%2$s", "%1$s/package/cli.js"]
         RUBY
       end
     end

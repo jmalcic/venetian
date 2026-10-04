@@ -157,13 +157,11 @@ module Venetian
             mocking_exe_directory do
               @executor_mock.expect(:run, Data.define(:exitstatus).new(23), [*Executable.base_command, "foo"])
 
-              Gem.stub :win_platform?, true do
-                with_stubs do
-                  exception = assert_raises SystemExit do
-                    Executable.execute "foo", echo: false
-                  end
-                  assert_equal 23, exception.status
+              with_stubs windows: true do
+                exception = assert_raises SystemExit do
+                  Executable.execute "foo", echo: false
                 end
+                assert_equal 23, exception.status
               end
             end
 
@@ -478,8 +476,10 @@ module Venetian
       Upstream::NATIVE_PLATFORMS.keys.detect { |platform| Gem::Platform.local =~ platform }
     end
 
-    def with_stubs(&)
-      Executable.stub :executor, @executor_mock, &
+    def with_stubs(windows: false, &)
+      Gem.stub(:win_platform?, windows) do
+        Executable.stub(:executor, @executor_mock, &)
+      end
     end
   end
 end
