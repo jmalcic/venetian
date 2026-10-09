@@ -24,11 +24,10 @@ module Venetian
 
     class_methods do
       def driven_by(driver, options: {}, **)
-        super
-
         self.venetian_browser_type = if driver == :playwright
                                        BrowserRunnerExtensions.browser_to_preinstall_from(options)
                                      end
+        super
       end
 
       def install_playwright_browsers

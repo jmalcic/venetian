@@ -72,6 +72,12 @@ module Venetian
       assert_equal :playwright, @test_case.driver.name
     end
 
+    test "returns the driver when setting driver" do
+      @test_case.driven_by(:playwright).tap do |driver|
+        assert_same @test_case.driver, driver
+      end
+    end
+
     test "installs browsers and disables autoinstallation" do
       Minitest::Runnable.stub :runnables, [FakeSystemTestCase, OtherFakeSystemTestCase, SystemTestCaseWithoutDriver] do
         Venetian.auto_install_browsers = true
