@@ -42,8 +42,10 @@ module Venetian
               @executor_mock.expect_system(StandardError)
 
               with_stubs do
-                assert_raises StandardError do
-                  Executable.system "foo"
+                assert_output "#{Executable.base_command.shelljoin} foo\n" do
+                  assert_raises StandardError do
+                    Executable.system "foo"
+                  end
                 end
               end
             end
@@ -56,7 +58,9 @@ module Venetian
               @executor_mock.expect_system(nil, ["foo"], exception: false)
 
               with_stubs do
-                refute Executable.system "foo", exception: false
+                assert_output "#{Executable.base_command.shelljoin} foo\n" do
+                  refute Executable.system "foo", exception: false
+                end
               end
             end
 
