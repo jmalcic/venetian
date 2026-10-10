@@ -11,6 +11,28 @@ permissions:
   contents: read
 
 jobs:
+  release_check:
+    runs-on: ubuntu-latest
+    name: Check for unreleased version
+    if: github.event_name == 'push'
+    outputs:
+      release_source: ${{ steps.release_source.outputs.release_source }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ruby
+          bundler-cache: true
+      - name: Check RubyGems for the current version
+        id: release_source
+        run: |
+          release_source=$(bundle exec rake release_source)
+          echo "release_source=$release_source" >> "$GITHUB_OUTPUT"
+
   build:
     runs-on: ubuntu-latest
     name: Ruby ${{ matrix.ruby }}
@@ -79,3 +101,21 @@ jobs:
           bundler-cache: true
       - name: Run the tests
         run: bundle exec rake test
+
+  verify:
+    name: Verify build
+    needs: release_check
+    if: needs.release_check.outputs.release_source == ''
+    uses: ./.github/workflows/verify_build.yml
+
+  release:
+    name: Release
+    needs: [ release_check, build, rails, windows, verify ]
+    if: needs.release_check.outputs.release_source == ''
+    uses: ./.github/workflows/gem_push.yml
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write

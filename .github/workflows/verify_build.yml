@@ -11,6 +11,8 @@ on:
       - lib/venetian/version.rb
       - venetian.gemspec
 
+  workflow_call:
+
 jobs:
   build:
     name: Build and install every platform gem

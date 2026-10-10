@@ -9,6 +9,13 @@ class ReleaseTask
       end
     end
 
+    def release_source_task
+      desc "Prints the source the current version was released to, if it has been released"
+      task :release_source do
+        puts released_spec&.last&.uri
+      end
+    end
+
     private
 
     def released_playwright_version_current?
@@ -56,7 +63,9 @@ class ReleaseTask
     end
 
     def released_specs
-      @released_specs ||= Gem::SpecFetcher.fetcher.spec_for_dependency(gem_dependency, true)
+      @released_specs ||= Gem::SpecFetcher.fetcher.spec_for_dependency(gem_dependency, false).tap do |_, errors|
+        raise errors.first.error unless errors.empty?
+      end
     end
 
     def gem_dependency

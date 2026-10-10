@@ -23,6 +23,7 @@ class ReleaseTask # :nodoc:
     core_package_tasks
     PlatformTasks.create_for(*Venetian::Upstream::NATIVE_PLATFORMS.keys)
     sync_version_task
+    release_source_task
   end
 
   private

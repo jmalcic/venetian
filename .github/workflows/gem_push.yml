@@ -1,10 +1,7 @@
 name: Ruby Gem
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - lib/venetian/version.rb
+  workflow_call:
 
 jobs:
   build:
