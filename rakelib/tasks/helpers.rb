@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ReleaseTask
+module Tasks
   module Helpers # :nodoc: all
     def with_tmp_download_pathname(extension, &block)
       Dir.mktmpdir do |tmpdir|
@@ -16,7 +16,11 @@ class ReleaseTask
     end
 
     def gsub(file, regexp, replacement)
-      File.binwrite(file, File.binread(file).gsub(regexp, replacement))
+      File.binread(file).then do |content|
+        raise ArgumentError, "#{regexp.inspect} matches nothing in #{file}" unless content.match?(regexp)
+
+        File.binwrite(file, content.gsub(regexp) { replacement })
+      end
     end
 
     def write_gemspec(path, gemspec)
