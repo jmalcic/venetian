@@ -16,7 +16,7 @@ module Tasks
     end
 
     def gsub(file, regexp, replacement)
-      File.binwrite(file, File.binread(file).gsub(regexp, replacement))
+      File.binwrite(file, File.binread(file).gsub(regexp) { replacement })
     end
 
     def write_gemspec(path, gemspec)
