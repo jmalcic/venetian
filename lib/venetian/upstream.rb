@@ -42,9 +42,9 @@ module Venetian
         "#{NODE_DIST_URL}/v#{version}/#{node_archive_name_for(version)}"
       end
 
-      # Returns the URL of the SHA-256 checksums for the Node.js release archives of the given version.
-      def node_checksums_url_for(version)
-        "#{NODE_DIST_URL}/v#{version}/SHASUMS256.txt"
+      # Returns the URL of the signed SHA-256 checksums for the Node.js release archives of the given version.
+      def node_signed_checksums_url_for(version)
+        "#{NODE_DIST_URL}/v#{version}/SHASUMS256.txt.asc"
       end
     end
 
@@ -68,7 +68,17 @@ module Venetian
 
     # Returns the URL of the npm registry metadata for the playwright-core package, which includes its integrity hash.
     def self.playwright_core_metadata_url
-      "#{NPM_REGISTRY_URL}/playwright-core/#{COMPATIBLE_PLAYWRIGHT_VERSION}"
+      npm_metadata_url("playwright-core", COMPATIBLE_PLAYWRIGHT_VERSION)
+    end
+
+    # Returns the URL of the npm registry metadata for the given package version.
+    def self.npm_metadata_url(name, version)
+      "#{npm_packument_url(name)}/#{version}"
+    end
+
+    # Returns the URL of the npm registry metadata for every version of the given package, including publish times.
+    def self.npm_packument_url(name)
+      "#{NPM_REGISTRY_URL}/#{name}"
     end
 
     # Returns the gemspec files for the base gem.

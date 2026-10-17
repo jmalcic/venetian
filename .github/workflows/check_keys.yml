@@ -1,0 +1,33 @@
+name: Check Keys
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - rakelib/tasks/keys/**
+      - rakelib/tasks/signatures.rb
+      - rakelib/upstream_task.rb
+      - .github/workflows/check_keys.yml
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check the pinned keys match upstream
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install Ruby and gems
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          ruby-version: ruby
+      - name: Update the pinned keys
+        run: bundle exec rake update_keys
+      - name: Ensure the pinned keys are unchanged
+        run: git diff --exit-code rakelib/tasks/keys

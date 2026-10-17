@@ -48,10 +48,11 @@ class UpstreamTaskTest < Minitest::Test
     FileUtils.remove_entry @tmpdir
   end
 
-  test "defines update node and a pull request task for it" do
+  test "defines each update task and a pull request task for it" do
     Rake.with_application do
       UpstreamTask.create
 
+      assert_equal ["update_keys"], Rake::Task["update_keys:pull_request"].prerequisites
       assert_equal ["update_node"], Rake::Task["update_node:pull_request"].prerequisites
     end
   end
