@@ -42,6 +42,13 @@ module Tasks
       assert_includes File.read(@versioned.version_file), 'VERSION = "a\\\\b"'
     end
 
+    test "patch version constants raises and leaves the file alone when a constant is missing" do
+      assert_raises ArgumentError, match: /matches nothing/ do
+        @versioned.patch_version_constants MISSING: "1.0.0"
+      end
+      assert_equal File.read(Versioning::VERSION_FILE), File.read(@versioned.version_file)
+    end
+
     test "patch gemspec rewrites the playwright-ruby-client requirement in the real gemspec" do
       @versioned.patch_gemspec
 

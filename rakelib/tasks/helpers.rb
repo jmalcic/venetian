@@ -16,7 +16,11 @@ module Tasks
     end
 
     def gsub(file, regexp, replacement)
-      File.binwrite(file, File.binread(file).gsub(regexp) { replacement })
+      File.binread(file).then do |content|
+        raise ArgumentError, "#{regexp.inspect} matches nothing in #{file}" unless content.match?(regexp)
+
+        File.binwrite(file, content.gsub(regexp) { replacement })
+      end
     end
 
     def write_gemspec(path, gemspec)
