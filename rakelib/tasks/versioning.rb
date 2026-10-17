@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
-require "rake"
+require "open3"
 require "playwright/version"
+require "rake"
 require_relative "../../lib/venetian/gemspec"
 require_relative "../../lib/venetian/version"
 require_relative "helpers"
+require_relative "signed_commit"
 
 module Tasks
   module Versioning # :nodoc: all
@@ -40,9 +42,7 @@ module Tasks
       patch_version_file
       patch_gemspec
       update_lockfile
-      system "git", "commit", version_file, gemspec_file, "Gemfile.lock", "-m",
-             "Bump version to #{patched_version_string}", exception: true
-      system "git", "push", exception: true
+      push_signed_commit
     end
 
     def patch_version_file
@@ -64,10 +64,19 @@ module Tasks
       system Hash("BUNDLE_FROZEN" => "false"), "bundle", "install", exception: true
     end
 
+    def push_signed_commit
+      SignedCommit.new("Bump version to #{patched_version_string}", [version_file, gemspec_file, "Gemfile.lock"])
+                  .push(current_branch)
+    end
+
     def released_playwright_version
       return unless released_spec
 
       released_spec.first.metadata["playwright_version"]
+    end
+
+    def current_branch
+      Open3.capture2("git", "branch", "--show-current").first.chomp
     end
 
     def gemspec_file
