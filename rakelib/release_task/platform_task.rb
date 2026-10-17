@@ -89,11 +89,11 @@ class ReleaseTask
       task install_tasks: "tmp/#{platform}/venetian-#{platform}.gemspec" do
         copy_files Venetian::Upstream.base_files, File.join("tmp", platform)
         cp_r File.join("exe", platform), File.join("tmp", platform, "exe", platform), remove_destination: true
-        install_release_tasks_for platform
+        install_release_tasks
       end
     end
 
-    def install_release_tasks_for(platform)
+    def install_release_tasks
       VenetianGemHelper.new(gem_path, "venetian-#{platform}", namespace: platform).install
     end
 
@@ -104,31 +104,31 @@ class ReleaseTask
     def download_and_extract_node(destination_dir)
       with_tmp_download_pathname platform_info.node_archive_extension do |pathname|
         pathname.binwrite URI.open(platform_info.node_url_for(PlatformTask.node_version)).read # rubocop:disable Security/Open
-        extract_node_archive platform_info, pathname, destination_dir
+        extract_node_archive pathname, destination_dir
       end
     end
 
-    def node_dir_name_for(platform_info)
+    def node_dir_name
       "node-v#{PlatformTask.node_version}-#{platform_info.node_dir}"
     end
 
-    def extract_node_archive(platform_info, archive_pathname, destination_dir)
+    def extract_node_archive(archive_pathname, destination_dir)
       Dir.mktmpdir do |extract_dir|
         if platform_info.windows
-          extract_node_for_windows archive_pathname, node_dir_name_for(platform_info), extract_dir, destination_dir
+          extract_node_for_windows archive_pathname, extract_dir, destination_dir
         else
-          extract_node_for_unix archive_pathname, node_dir_name_for(platform_info), extract_dir, destination_dir
+          extract_node_for_unix archive_pathname, extract_dir, destination_dir
         end
-        cp File.join(extract_dir, node_dir_name_for(platform_info), "LICENSE"), File.join(destination_dir, "LICENSE")
+        cp File.join(extract_dir, node_dir_name, "LICENSE"), File.join(destination_dir, "LICENSE")
       end
     end
 
-    def extract_node_for_windows(archive_pathname, node_dir_name, extract_dir, destination_dir)
+    def extract_node_for_windows(archive_pathname, extract_dir, destination_dir)
       system "unzip", "-q", "-o", archive_pathname.to_path, "-d", extract_dir, exception: true
       cp File.join(extract_dir, node_dir_name, "node.exe"), File.join(destination_dir, "node.exe")
     end
 
-    def extract_node_for_unix(archive_pathname, node_dir_name, extract_dir, destination_dir)
+    def extract_node_for_unix(archive_pathname, extract_dir, destination_dir)
       system "tar", "-xzf", archive_pathname.to_path, "-C", extract_dir, exception: true
       cp File.join(extract_dir, node_dir_name, "bin", "node"), File.join(destination_dir, "node")
       chmod 0o755, File.join(destination_dir, "node")
