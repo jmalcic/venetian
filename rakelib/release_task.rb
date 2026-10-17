@@ -6,14 +6,14 @@ require "tmpdir"
 require "playwright/version"
 require_relative "../lib/venetian/gemspec"
 require_relative "../lib/venetian/upstream"
-require_relative "release_task/helpers"
+require_relative "tasks/helpers"
 require_relative "release_task/platform_tasks"
-require_relative "release_task/versioning"
+require_relative "tasks/versioning"
 
 class ReleaseTask # :nodoc:
   include Rake::DSL
-  include Helpers
-  include Versioning
+  include Tasks::Helpers
+  include Tasks::Versioning
 
   def self.create
     new.define

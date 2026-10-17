@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ReleaseTask
+module Tasks
   module Helpers # :nodoc: all
     def with_tmp_download_pathname(extension, &block)
       Dir.mktmpdir do |tmpdir|

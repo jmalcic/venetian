@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "helpers"
+require_relative "../tasks/helpers"
 
 class ReleaseTask
   class PlatformTasks # :nodoc: all
@@ -18,7 +18,7 @@ class ReleaseTask
     end
 
     include Rake::DSL
-    include Helpers
+    include Tasks::Helpers
 
     def self.create_for(*platforms)
       platforms.each do |platform|

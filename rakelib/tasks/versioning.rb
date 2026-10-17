@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ReleaseTask
+module Tasks
   module Versioning # :nodoc: all
     def sync_version_task
       desc "Patches the version if the current compatible Playwright version is greater than the released version"
