@@ -2,6 +2,7 @@
 
 require "playwright/version"
 require_relative "../../lib/venetian/gemspec"
+require_relative "../../lib/venetian/version"
 require_relative "helpers"
 
 module Tasks
@@ -12,7 +13,6 @@ module Tasks
     VERSION_FILE = Venetian.const_source_location(:VERSION).first
     GEMSPEC_FILE = File.join(__dir__, "..", "..", "venetian.gemspec")
     CURRENT_VERSION = Gem::Version.new(Venetian::VERSION)
-    GEM_DEPENDENCY = Gem::Dependency.new(Venetian::GEMSPEC.name, Venetian::GEMSPEC.version)
 
     def sync_version_task
       desc "Patches the version if the current compatible Playwright version is greater than the released version"
@@ -81,9 +81,13 @@ module Tasks
     end
 
     def released_specs
-      @released_specs ||= Gem::SpecFetcher.fetcher.spec_for_dependency(GEM_DEPENDENCY, false).tap do |_, errors|
+      @released_specs ||= Gem::SpecFetcher.fetcher.spec_for_dependency(gem_dependency, false).tap do |_, errors|
         raise errors.first.error unless errors.empty?
       end
+    end
+
+    def gem_dependency
+      Gem::Dependency.new(Venetian::GEMSPEC.name, Venetian::GEMSPEC.version)
     end
   end
 end
