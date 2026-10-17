@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "rake"
 require "playwright/version"
 require_relative "../../lib/venetian/gemspec"
 require_relative "../../lib/venetian/version"
@@ -7,6 +8,7 @@ require_relative "helpers"
 
 module Tasks
   module Versioning # :nodoc: all
+    include Rake::DSL
     include Helpers
 
     CLIENT_REQUIREMENT = %("~> #{Gem::Version.new(Playwright::VERSION).segments.first(2).join(".")}.0").freeze
