@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require "digest"
+require "pathname"
+require "rake/clean"
+require "tmpdir"
+require_relative "../../lib/venetian/upstream"
 require_relative "../tasks/helpers"
 
 class ReleaseTask
@@ -20,21 +25,14 @@ class ReleaseTask
     include Rake::DSL
     include Tasks::Helpers
 
+    def self.responses
+      @responses ||= {}
+    end
+
     def self.create_for(*platforms)
       platforms.each do |platform|
         new(platform).define
       end
-    end
-
-    def self.node_version
-      @node_version ||= JSON.parse(URI.open(node_releases_url).read) # rubocop:disable Security/Open
-                            .find { |release| release["lts"] }
-                            .fetch("version")
-                            .delete_prefix("v")
-    end
-
-    def self.node_releases_url
-      "#{Venetian::Upstream::NODE_DIST_URL}/index.json"
     end
 
     def initialize(platform)
@@ -50,6 +48,10 @@ class ReleaseTask
     private
 
     attr_reader :platform
+
+    def read_https(url)
+      self.class.responses[url] ||= super
+    end
 
     def executable_tasks
       directory "exe/#{platform}"
@@ -103,13 +105,16 @@ class ReleaseTask
 
     def download_and_extract_node(destination_dir)
       with_tmp_download_pathname platform_info.node_archive_extension do |pathname|
-        pathname.binwrite URI.open(platform_info.node_url_for(PlatformTask.node_version)).read # rubocop:disable Security/Open
+        download platform_info.node_url_for(Venetian::NODE_VERSION), pathname
+        verify_checksum platform_info.node_checksums_url_for(Venetian::NODE_VERSION), pathname,
+                        digest: Digest::SHA256,
+                        extractor: ->(res) { res[platform_info.node_checksum_pattern_for(Venetian::NODE_VERSION), 1] }
         extract_node_archive pathname, destination_dir
       end
     end
 
     def node_dir_name
-      "node-v#{PlatformTask.node_version}-#{platform_info.node_dir}"
+      platform_info.node_archive_basename_for(Venetian::NODE_VERSION)
     end
 
     def extract_node_archive(archive_pathname, destination_dir)
