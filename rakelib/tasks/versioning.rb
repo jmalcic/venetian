@@ -2,9 +2,12 @@
 
 require "playwright/version"
 require_relative "../../lib/venetian/gemspec"
+require_relative "helpers"
 
 module Tasks
   module Versioning # :nodoc: all
+    include Helpers
+
     CLIENT_REQUIREMENT = %("~> #{Gem::Version.new(Playwright::VERSION).segments.first(2).join(".")}.0").freeze
     VERSION_FILE = Venetian.const_source_location(:VERSION).first
     GEMSPEC_FILE = File.join(__dir__, "..", "..", "venetian.gemspec")
@@ -32,13 +35,27 @@ module Tasks
     end
 
     def patch
-      gsub version_file, /(?<=\sVERSION = )".+"/, "\"#{patched_version_string}\""
-      gsub version_file, /(?<=\sCOMPATIBLE_PLAYWRIGHT_VERSION = )".+"/, "\"#{Playwright::COMPATIBLE_PLAYWRIGHT_VERSION}\""
+      patch_version_file
       gsub gemspec_file, /(?<="playwright-ruby-client", ).+$/, CLIENT_REQUIREMENT
-      system Hash("BUNDLE_FROZEN" => "false"), "bundle", "install", exception: true
+      update_lockfile
       system "git", "commit", version_file, gemspec_file, "Gemfile.lock", "-m",
              "Bump version to #{patched_version_string}", exception: true
       system "git", "push", exception: true
+    end
+
+    def patch_version_file
+      patch_version_constants VERSION: patched_version_string,
+                              COMPATIBLE_PLAYWRIGHT_VERSION: Playwright::COMPATIBLE_PLAYWRIGHT_VERSION
+    end
+
+    def patch_version_constants(**values)
+      values.each do |name, value|
+        gsub version_file, /(?<=\s#{name} = )".+"/, value.dump
+      end
+    end
+
+    def update_lockfile
+      system Hash("BUNDLE_FROZEN" => "false"), "bundle", "install", exception: true
     end
 
     def released_playwright_version
