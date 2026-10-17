@@ -3,7 +3,7 @@
 require_relative "../tasks/helpers"
 
 class ReleaseTask
-  class PlatformTasks # :nodoc: all
+  class PlatformTask # :nodoc: all
     class VenetianGemHelper < Bundler::GemHelper
       def initialize(*, namespace: nil, **)
         super(*, **)
@@ -56,7 +56,7 @@ class ReleaseTask
       CLEAN.include File.join("exe", platform)
 
       file "exe/#{platform}/#{platform_info.executable_name}" => %W[exe/#{platform} tmp/playwright-core/package] do
-        download_and_extract_node platform, File.join("exe", platform)
+        download_and_extract_node File.join("exe", platform)
         cp_r "tmp/playwright-core/package", File.join("exe", platform, "package"), remove_destination: true
       end
     end
@@ -101,17 +101,15 @@ class ReleaseTask
       Pathname.new(__dir__).join("..", "..", "tmp", platform).expand_path
     end
 
-    def download_and_extract_node(platform, destination_dir)
-      Venetian::Upstream::NATIVE_PLATFORMS.fetch(platform).then do |platform_info|
-        with_tmp_download_pathname platform_info.node_archive_extension do |pathname|
-          pathname.binwrite URI.open(platform_info.node_url_for(PlatformTasks.node_version)).read # rubocop:disable Security/Open
-          extract_node_archive platform_info, pathname, destination_dir
-        end
+    def download_and_extract_node(destination_dir)
+      with_tmp_download_pathname platform_info.node_archive_extension do |pathname|
+        pathname.binwrite URI.open(platform_info.node_url_for(PlatformTask.node_version)).read # rubocop:disable Security/Open
+        extract_node_archive platform_info, pathname, destination_dir
       end
     end
 
     def node_dir_name_for(platform_info)
-      "node-v#{PlatformTasks.node_version}-#{platform_info.node_dir}"
+      "node-v#{PlatformTask.node_version}-#{platform_info.node_dir}"
     end
 
     def extract_node_archive(platform_info, archive_pathname, destination_dir)

@@ -7,7 +7,7 @@ require "playwright/version"
 require_relative "../lib/venetian/gemspec"
 require_relative "../lib/venetian/upstream"
 require_relative "tasks/helpers"
-require_relative "release_task/platform_tasks"
+require_relative "release_task/platform_task"
 require_relative "tasks/versioning"
 
 class ReleaseTask # :nodoc:
@@ -21,7 +21,7 @@ class ReleaseTask # :nodoc:
 
   def define
     core_package_tasks
-    PlatformTasks.create_for(*Venetian::Upstream::NATIVE_PLATFORMS.keys)
+    PlatformTask.create_for(*Venetian::Upstream::NATIVE_PLATFORMS.keys)
     sync_version_task
     release_source_task
   end
