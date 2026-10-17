@@ -36,7 +36,7 @@ module Tasks
 
     def patch
       patch_version_file
-      gsub gemspec_file, /(?<="playwright-ruby-client", ).+$/, CLIENT_REQUIREMENT
+      patch_gemspec
       update_lockfile
       system "git", "commit", version_file, gemspec_file, "Gemfile.lock", "-m",
              "Bump version to #{patched_version_string}", exception: true
@@ -52,6 +52,10 @@ module Tasks
       values.each do |name, value|
         gsub version_file, /(?<=\s#{name} = )".+"/, value.dump
       end
+    end
+
+    def patch_gemspec
+      gsub gemspec_file, /(?<="playwright-ruby-client", ).+$/, CLIENT_REQUIREMENT
     end
 
     def update_lockfile
@@ -73,7 +77,11 @@ module Tasks
     end
 
     def patched_version_string
-      [*CURRENT_VERSION.segments[0..-2], CURRENT_VERSION.segments.last.succ].join(".")
+      next_patch_version CURRENT_VERSION
+    end
+
+    def next_patch_version(version)
+      [*version.segments[0..-2], version.segments.last.succ].join(".")
     end
 
     def released_spec
