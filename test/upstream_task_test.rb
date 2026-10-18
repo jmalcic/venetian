@@ -14,7 +14,7 @@ class UpstreamTaskTest < Minitest::Test
       @lockfile_updates = 0
     end
 
-    public :update_node
+    public :update_node, :next_patch_version
 
     private
 
@@ -84,6 +84,6 @@ class UpstreamTaskTest < Minitest::Test
   private
 
   def patched_version
-    Gem::Version.new(Venetian::VERSION).segments.then { |segments| [*segments[0..-2], segments.last.succ].join(".") }
+    @updated.next_patch_version(Gem::Version.new(Venetian::VERSION))
   end
 end

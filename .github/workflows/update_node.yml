@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: update-node
+
 jobs:
   update:
     name: Open a pull request for a later Node.js LTS release
