@@ -22,19 +22,26 @@ module Tasks
         @current_key = OpenSSL::PKey::EC.generate("prime256v1")
         @expiring_key = OpenSSL::PKey::EC.generate("prime256v1")
         @publish_times = {}
-        super([key_entry("current", current_key), key_entry("expiring", expiring_key, EXPIRES)])
+        super([key_entry(current_key), key_entry(expiring_key, EXPIRES)])
+      end
+
+      def verify(...)
+        OpenURI.stub :open_uri, ->(uri, *args, &block) { respond_to_uri(uri, *args, &block) } do
+          super
+        end
       end
 
       private
 
-      def key_entry(keyid, key, expires = nil)
-        { "keyid" => keyid, "expires" => expires&.iso8601, "key" => [key.public_to_der].pack("m0") }
+      def key_entry(key, expires = nil)
+        { "keyid" => Signatures::NpmKeys.fingerprint(key), "keytype" => "ecdsa-sha2-nistp256",
+          "expires" => expires&.iso8601, "key" => [key.public_to_der].pack("m0") }
       end
 
-      def read_https(url)
-        raise ArgumentError, "Unexpected URL #{url}" unless url == Venetian::Upstream.npm_packument_url(NAME)
+      def respond_to_uri(uri, *, &)
+        raise ArgumentError, "Unexpected URL #{uri}" unless uri.to_s == Venetian::Upstream.npm_packument_url(NAME)
 
-        JSON.generate({ "time" => publish_times.transform_values(&:iso8601) })
+        StringIO.new(JSON.generate({ "time" => publish_times.transform_values(&:iso8601) })).then(&)
       end
     end
 
@@ -126,7 +133,7 @@ module Tasks
         Digest::SHA512.file(@download).hexdigest
       end
 
-      def signature(keyid, key)
+      def signature(key, keyid: Signatures::NpmKeys.fingerprint(key))
         { "keyid" => keyid, "sig" => [key.sign("SHA256", "#{NAME}@#{VERSION}:#{INTEGRITY}")].pack("m0") }
       end
 
@@ -150,7 +157,7 @@ module Tasks
 
         included do
           test "npm metadata is returned when signed by a pinned key" do
-            metadata(signature("current", @npm_keys.current_key)).then do |metadata|
+            metadata(signature(@npm_keys.current_key)).then do |metadata|
               assert_equal JSON.parse(metadata), @verified.npm_metadata(metadata)
             end
           end
@@ -159,20 +166,20 @@ module Tasks
             @npm_keys.publish_times = { VERSION => EXPIRES - 1 }
 
             assert_equal NAME,
-                         @verified.npm_metadata(metadata(signature("expiring", @npm_keys.expiring_key))).fetch("name")
+                         @verified.npm_metadata(metadata(signature(@npm_keys.expiring_key))).fetch("name")
           end
 
           test "npm metadata raises when an expired key signed a version published after it expired" do
             @npm_keys.publish_times = { VERSION => EXPIRES }
 
             assert_raises RuntimeError, match: /#{NAME}@#{VERSION} isn't signed by a pinned npm registry key/ do
-              @verified.npm_metadata metadata(signature("expiring", @npm_keys.expiring_key))
+              @verified.npm_metadata metadata(signature(@npm_keys.expiring_key))
             end
           end
 
           test "npm metadata raises when there's no publish time to check an expired key against" do
             assert_raises RuntimeError, match: /No publish time for #{NAME}@#{VERSION}/ do
-              @verified.npm_metadata metadata(signature("expiring", @npm_keys.expiring_key))
+              @verified.npm_metadata metadata(signature(@npm_keys.expiring_key))
             end
           end
 
@@ -184,13 +191,13 @@ module Tasks
 
           test "npm metadata raises when signed by an unknown key" do
             assert_raises RuntimeError, match: /isn't signed by a pinned npm registry key/ do
-              @verified.npm_metadata metadata(signature("unknown", @npm_keys.current_key))
+              @verified.npm_metadata metadata(signature(@npm_keys.current_key, keyid: "SHA256:unknown"))
             end
           end
 
           test "npm metadata raises when it describes a package other than the one requested" do
             assert_raises RuntimeError, match: /#{METADATA_URL} returned the metadata for #{NAME}@1.62.0/ do
-              @verified.npm_metadata metadata(signature("current", @npm_keys.current_key), version: "1.62.0")
+              @verified.npm_metadata metadata(signature(@npm_keys.current_key), version: "1.62.0")
             end
           end
         end
@@ -241,6 +248,39 @@ module Tasks
               end
             end
           end
+
+          test "listing gpg keys replaces bytes that aren't utf-8" do
+            Open3.stub :capture3,
+                       ["uid:-::::1::0::Zo\xEB <zoe@example.com>::::::::::0:\n".b, "", Open3.capture2("true").last] do
+              assert_predicate @verified.send(:gpg_key_listing, "keyring.gpg"), :valid_encoding?
+            end
+          end
+
+          test "listing gpg keys raises with gpg's error" do
+            Open3.stub :capture3, ["", "gpg: keyblock resource: No such file\n", Open3.capture2("false").last] do
+              assert_raises RuntimeError, match: /Couldn't list the keys: gpg: keyblock resource: No such file/ do
+                @verified.send(:gpg_key_listing, "keyring.gpg")
+              end
+            end
+          end
+
+          test "listing gpg keys doesn't blame gnupg when the temporary directory can't be made" do
+            Dir.stub :mktmpdir, ->(*) { raise Errno::ENOENT, "TMPDIR" } do
+              assert_raises Errno::ENOENT do
+                @verified.send(:gpg_key_listing, "keyring.gpg")
+              end
+            end
+          end
+
+          test "checking a node signature without gpgv raises saying gnupg is needed" do
+            @verified.node_keyring = @download
+
+            Open3.stub(:capture3, ->(*) { raise Errno::ENOENT, "gpgv" }) do
+              assert_raises RuntimeError, match: /gpgv isn't installed: it comes with GnuPG/ do
+                @verified.node_signed_text CHECKSUMS
+              end
+            end
+          end
         end
       end
     end
@@ -257,7 +297,7 @@ module Tasks
           end
 
           test "verify checksum extracts the checksum from the npm metadata once its signature is verified" do
-            metadata(signature("current", @npm_keys.current_key)).then do |metadata|
+            metadata(signature(@npm_keys.current_key)).then do |metadata|
               @verified.responses = { METADATA_URL => metadata }
 
               assert_equal download_digest,

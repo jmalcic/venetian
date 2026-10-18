@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: update-keys
+
 jobs:
   update:
     name: Open a pull request for changed signing keys

@@ -5,9 +5,8 @@ on:
     branches:
       - main
     paths:
-      - rakelib/tasks/keys/**
-      - rakelib/tasks/signatures.rb
-      - rakelib/upstream_task.rb
+      - rakelib/**
+      - lib/venetian/upstream.rb
       - .github/workflows/check_keys.yml
 
 permissions:
@@ -21,13 +20,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 2
           persist-credentials: false
+      - name: Ensure the pinned keys change in a pull request of their own
+        run: |
+          changed=$(git diff --no-renames --name-only HEAD^1 HEAD)
+          if grep -q '^rakelib/tasks/keys/' <<< "$changed" && grep -qv '^rakelib/tasks/keys/' <<< "$changed"; then
+            echo "::error::Change the pinned keys in a pull request that changes nothing else"
+            exit 1
+          fi
+      - name: Ensure the pinned keys are exactly the expected regular files
+        run: |
+          expected=$'100644 rakelib/tasks/keys/node.kbx\n100644 rakelib/tasks/keys/npm.json'
+          if [ "$(git ls-files --stage rakelib/tasks/keys | awk '{ print $1, $4 }')" != "$expected" ]; then
+            echo "::error::rakelib/tasks/keys must hold only node.kbx and npm.json, as regular files"
+            exit 1
+          fi
       - name: Install Ruby and gems
         uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
           ruby-version: ruby
-      - name: Update the pinned keys
+      - name: Fetch the upstream keys
         run: bundle exec rake update_keys
-      - name: Ensure the pinned keys are unchanged
-        run: git diff --exit-code rakelib/tasks/keys
+      - name: Ensure the pinned keys match upstream
+        run: git diff --exit-code

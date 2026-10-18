@@ -13,7 +13,8 @@ module Tasks
       attr_reader :gh_calls
 
       def initialize(body = "Body")
-        super(:update_keys, branch: BRANCH, title: TITLE, paths: ["keys"], body: -> { body })
+        super(:update_keys, branch: BRANCH, title: TITLE, paths: ["keys"],
+                            body: body.respond_to?(:call) ? body : -> { body })
         @gh_calls = []
       end
 
@@ -168,6 +169,15 @@ module Tasks
       assert_equal "new", remote_key
       assert_equal TITLE, git("log", "-1", "--format=%s", remote_branch).chomp
       assert_equal [["pr", "create", "--head", BRANCH, "--title", TITLE, "--body", "Body"]], @requested.gh_calls
+    end
+
+    test "pushes nothing when the body can't be rendered" do
+      @requested = Requested.new(-> { raise "Couldn't render the body" })
+      write_key "new"
+
+      assert_raises(RuntimeError, match: /Couldn't render the body/) { update }
+      assert_empty @requested.gh_calls
+      refute remote_branch
     end
 
     test "replaces the branch of a closed pull request" do

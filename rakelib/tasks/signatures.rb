@@ -3,8 +3,10 @@
 require "json"
 require "open3"
 require "pathname"
+require "tmpdir"
 require_relative "../../lib/venetian/upstream"
 require_relative "helpers"
+require_relative "signatures/gpg_keys"
 require_relative "signatures/npm_keys"
 
 module Tasks
@@ -58,15 +60,30 @@ module Tasks
     end
 
     def gpgv(keyring_path, clearsigned)
-      Open3.capture3("gpgv", "--keyring", keyring_path, "--output", "-", "-", stdin_data: clearsigned, binmode: true)
-           .tap { |_response, error, status| raise VerificationError, error unless status.success? }
-           .first
+      requiring_gnupg "gpgv" do
+        Open3.capture3("gpgv", "--keyring", keyring_path, "--output", "-", "-", stdin_data: clearsigned, binmode: true)
+             .tap { |_response, error, status| raise VerificationError, error unless status.success? }
+             .first
+      end
     end
 
-    def list_gpg_keys(keyring_path)
-      Open3.capture2("gpg", "--no-default-keyring", "--keyring", keyring_path, "--list-keys")
-           .tap { |_keys, status| raise "Couldn't list the pinned Node.js release keys" unless status.success? }
-           .first
+    def gpg_key_listing(keyring_path)
+      Dir.mktmpdir do |home|
+        requiring_gnupg "gpg" do
+          Open3.capture3("gpg", "--homedir", home, "--no-options", "--no-default-keyring", "--keyring", keyring_path,
+                         "--with-colons", "--with-subkey-fingerprint", "--list-keys")
+               .tap { |_response, error, status| raise "Couldn't list the keys: #{error.strip}" unless status.success? }
+               .first
+               .force_encoding(Encoding::UTF_8)
+               .scrub
+        end
+      end
+    end
+
+    def requiring_gnupg(command)
+      yield
+    rescue Errno::ENOENT
+      raise "#{command} isn't installed: it comes with GnuPG"
     end
 
     def node_keyring
@@ -74,7 +91,7 @@ module Tasks
     end
 
     def npm_keys
-      @npm_keys ||= NpmKeys.parse(NPM_KEYS)
+      @npm_keys ||= NpmKeys.parse(NPM_KEYS.read)
     end
   end
 end

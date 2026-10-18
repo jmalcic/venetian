@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
+require "json"
+require "open3"
 require "rake"
+require "tempfile"
 require_relative "tasks/pull_request_task"
 require_relative "tasks/signatures"
 require_relative "tasks/versioning"
 
-# Defines the tasks keeping the pinned upstream dependencies current, each with a task opening a pull request for it
 class UpstreamTask # :nodoc:
   include Rake::DSL
   include Tasks::Signatures
@@ -53,11 +55,49 @@ class UpstreamTask # :nodoc:
       https://github.com/nodejs/node#release-keys and the history of https://github.com/nodejs/release-keys, and
       npm registry keys against https://docs.npmjs.com/about-registry-signatures.
 
+      #{render_key_changes}
+
       Pinned Node.js release keys:
 
-      ```
-      #{list_gpg_keys(node_keyring.to_path)}```
+      #{pinned_node_keys}
     MARKDOWN
+  end
+
+  def render_key_changes
+    case all_key_changes
+    in [_, *] => changes then changes.join("\n")
+    else "No key was added, removed or changed in the details listed, but the key files differ, so check their diff."
+    end
+  end
+
+  def all_key_changes
+    committed_node_keys.changes_to(pinned_node_keys) + committed_npm_keys.changes_to(pinned_npm_keys)
+  end
+
+  def committed_node_keys
+    Tempfile.create(%w[node .kbx], binmode: true) do |file|
+      file.write committed_content(node_keyring)
+      file.close
+      GpgKeys.parse(gpg_key_listing(file.path))
+    end
+  end
+
+  def pinned_node_keys
+    @pinned_node_keys ||= GpgKeys.parse(gpg_key_listing(node_keyring.to_path))
+  end
+
+  def committed_npm_keys
+    NpmKeys.parse(committed_content(NPM_KEYS))
+  end
+
+  def pinned_npm_keys
+    NpmKeys.parse(NPM_KEYS.read)
+  end
+
+  def committed_content(path)
+    Open3.capture3("git", "show", "HEAD:./#{File.basename(path)}", chdir: File.dirname(path), binmode: true)
+         .tap { |_content, error, status| raise "Couldn't read #{path} in HEAD: #{error.strip}" unless status.success? }
+         .first
   end
 
   def update_node
