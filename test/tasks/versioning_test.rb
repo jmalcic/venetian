@@ -62,13 +62,25 @@ module Tasks
       end
     end
 
-    test "patch version file bumps the gem version and patches the compatible playwright and node versions" do
-      @versioned.node_releases << { "version" => "v99.0.0", "lts" => "Future" }
-      @versioned.patch_version_file
+    test "patch version file for playwright bumps the gem and compatible playwright versions, not node" do
+      @versioned.node_releases = nil
+      @versioned.patch_version_file playwright: true
 
       File.read(@versioned.version_file).then do |contents|
         assert_includes contents, %(VERSION = "#{@versioned.next_patch_version(Gem::Version.new(Venetian::VERSION))}")
         assert_includes contents, %(COMPATIBLE_PLAYWRIGHT_VERSION = "#{Playwright::COMPATIBLE_PLAYWRIGHT_VERSION}")
+        assert_includes contents, %(NODE_VERSION = "#{Venetian::NODE_VERSION}")
+      end
+    end
+
+    test "patch version file for node bumps the gem and node versions, not the compatible playwright version" do
+      @versioned.node_releases << { "version" => "v99.0.0", "lts" => "Future" }
+      @versioned.patch_version_constants COMPATIBLE_PLAYWRIGHT_VERSION: "0.0.0"
+      @versioned.patch_version_file node: true
+
+      File.read(@versioned.version_file).then do |contents|
+        assert_includes contents, %(VERSION = "#{@versioned.next_patch_version(Gem::Version.new(Venetian::VERSION))}")
+        assert_includes contents, 'COMPATIBLE_PLAYWRIGHT_VERSION = "0.0.0"'
         assert_includes contents, 'NODE_VERSION = "99.0.0"'
       end
     end
@@ -77,7 +89,7 @@ module Tasks
       @versioned.node_releases = nil
 
       assert_raises OpenURI::HTTPError do
-        @versioned.patch_version_file
+        @versioned.patch_version_file node: true
       end
       assert_equal File.read(Versioning::VERSION_FILE), File.read(@versioned.version_file)
     end
