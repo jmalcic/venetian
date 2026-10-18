@@ -94,7 +94,7 @@ module Tasks
     private
 
     def stub_uri_open(response = "", &)
-      OpenURI.stub :open_uri, ->(*, &block) { block.call(StringIO.new(response)) }, &
+      OpenURI.stub(:open_uri, ->(*, &block) { block.call(StringIO.new(response)) }, &)
     end
   end
 end
