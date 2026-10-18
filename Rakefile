@@ -12,3 +12,4 @@ RuboCop::RakeTask.new
 task default: %i[test rubocop]
 
 import "rakelib/release.rake"
+import "rakelib/upstream.rake"

@@ -42,20 +42,20 @@ module Tasks
     end
 
     def patch
-      patch_version_file
+      patch_version_file playwright: true
       patch_gemspec
       update_lockfile
       push_signed_commit
     end
 
-    def patch_version_file
+    def patch_version_file(playwright: false, node: false)
       patch_version_constants VERSION: patched_version_string,
-                              COMPATIBLE_PLAYWRIGHT_VERSION: Playwright::COMPATIBLE_PLAYWRIGHT_VERSION,
-                              NODE_VERSION: latest_node_lts_version
+                              COMPATIBLE_PLAYWRIGHT_VERSION: (Playwright::COMPATIBLE_PLAYWRIGHT_VERSION if playwright),
+                              NODE_VERSION: (latest_node_lts_version if node)
     end
 
     def patch_version_constants(**values)
-      values.each do |name, value|
+      values.compact.each do |name, value|
         gsub version_file, /(?<=\s#{name} = )".+"/, value.dump
       end
     end
@@ -74,6 +74,10 @@ module Tasks
     end
 
     def latest_node_lts_version
+      @latest_node_lts_version ||= fetch_latest_node_lts_version
+    end
+
+    def fetch_latest_node_lts_version
       JSON.parse(read_https(NODE_RELEASES_URL))
           .find { |release| release["lts"] }
           .tap { |release| raise "No LTS release found in #{NODE_RELEASES_URL}" unless release }
