@@ -37,6 +37,85 @@ module Tasks
       end
     end
 
+    module GitActions
+      private
+
+      def update
+        capture_subprocess_io { Dir.chdir(@repo) { @requested.update_pull_request } }
+      end
+
+      def git(*args)
+        Open3.capture2e("git", *args, chdir: File.exist?(@repo) ? @repo : @tmpdir)
+             .tap { |output, status| assert_predicate status, :success?, output }
+             .first
+      end
+
+      def write_key(contents)
+        FileUtils.mkdir_p File.join(@repo, "keys")
+        File.write File.join(@repo, "keys", "key"), contents
+      end
+
+      def push_branch_with_key(contents, message = "Update")
+        git "switch", "--quiet", "-c", BRANCH
+        write_key contents
+        git "commit", "--quiet", "-am", message
+        git "push", "--quiet", "origin", BRANCH
+        git "switch", "--quiet", "main"
+        git "branch", "--quiet", "-D", BRANCH
+      end
+
+      def remote_branch
+        git "fetch", "--quiet", "--prune", "origin"
+        "origin/#{BRANCH}" unless git("branch", "--remotes", "--list", "origin/#{BRANCH}").empty?
+      end
+
+      def remote_key
+        git "show", "#{remote_branch}:keys/key"
+      end
+    end
+
+    module PullRequestState
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
+          test "a pull request is open when gh says so" do
+            assert open_with("OPEN\n")
+          end
+
+          test "a pull request isn't open when gh says it's closed" do
+            refute open_with("CLOSED\n")
+          end
+
+          test "a pull request isn't open when gh finds none" do
+            refute open_with("", error: "no pull requests found for branch \"#{BRANCH}\"\n")
+          end
+
+          test "checking whether a pull request is open raises with gh's error when gh fails otherwise" do
+            assert_raises RuntimeError, match: /Couldn't check for a pull request from #{BRANCH}: HTTP 401/ do
+              open_with "", error: "HTTP 401: Bad credentials (https://api.github.com/graphql)\n"
+            end
+          end
+        end
+
+        private
+
+        def open_with(state, error: false)
+          Open3.stub(:capture3, ->(*args) { respond_to_args(args, state, error:) }) do
+            PullRequestTask.new(:update_keys, branch: BRANCH, title: TITLE, paths: ["keys"], body: -> { "Body" }).open?
+          end
+        end
+
+        def respond_to_args(args, state, error:)
+          assert_equal ["gh", "pr", "view", BRANCH, "--json", "state", "--jq", ".state"], args
+          [state, error, Open3.capture2(error ? "false" : "true").last]
+        end
+      end
+    end
+
+    include GitActions
+    include PullRequestState::Tests
+
     setup do
       @requested = Requested.new
       @tmpdir = Dir.mktmpdir
@@ -120,41 +199,6 @@ module Tasks
 
       assert_equal "new", remote_key
       assert_equal "edit", @requested.gh_calls.dig(0, 1)
-    end
-
-    private
-
-    def update
-      capture_subprocess_io { Dir.chdir(@repo) { @requested.update_pull_request } }
-    end
-
-    def git(*args)
-      Open3.capture2e("git", *args, chdir: File.exist?(@repo) ? @repo : @tmpdir)
-           .tap { |output, status| assert_predicate status, :success?, output }
-           .first
-    end
-
-    def write_key(contents)
-      FileUtils.mkdir_p File.join(@repo, "keys")
-      File.write File.join(@repo, "keys", "key"), contents
-    end
-
-    def push_branch_with_key(contents, message = "Update")
-      git "switch", "--quiet", "-c", BRANCH
-      write_key contents
-      git "commit", "--quiet", "-am", message
-      git "push", "--quiet", "origin", BRANCH
-      git "switch", "--quiet", "main"
-      git "branch", "--quiet", "-D", BRANCH
-    end
-
-    def remote_branch
-      git "fetch", "--quiet", "--prune", "origin"
-      "origin/#{BRANCH}" unless git("branch", "--remotes", "--list", "origin/#{BRANCH}").empty?
-    end
-
-    def remote_key
-      git "show", "#{remote_branch}:keys/key"
     end
   end
 end

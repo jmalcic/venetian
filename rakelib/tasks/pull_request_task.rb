@@ -25,6 +25,11 @@ module Tasks
       end
     end
 
+    def open?(force: false)
+      @open = pull_request_state == "OPEN" if force || @open.nil?
+      @open
+    end
+
     private
 
     attr_reader :name, :branch, :title, :paths, :body
@@ -62,14 +67,14 @@ module Tasks
       system "git", "diff", "--quiet", "--", *paths
     end
 
-    def open?(force: false)
-      @open = pull_request_state == "OPEN" if force || @open.nil?
-      @open
-    end
-
     def pull_request_state
-      Open3.capture2("gh", "pr", "view", branch, "--json", "state", "--jq", ".state", err: File::NULL)
-           .then { |state, status| state.strip if status.success? }
+      Open3.capture3("gh", "pr", "view", branch, "--json", "state", "--jq", ".state")
+           .then do |state, error, status|
+             next state.strip if status.success?
+             next if error.include?("no pull requests found")
+
+             raise "Couldn't check for a pull request from #{branch}: #{error.strip}"
+           end
     end
 
     def gh(*)
