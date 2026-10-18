@@ -1,10 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
-require "open-uri"
-require "tmpdir"
-require "playwright/version"
-require_relative "../lib/venetian/gemspec"
+require "rake/clean"
 require_relative "../lib/venetian/upstream"
 require_relative "tasks/helpers"
 require_relative "release_task/platform_task"
@@ -33,10 +30,17 @@ class ReleaseTask # :nodoc:
     CLEAN.include "tmp/playwright-core"
 
     file "tmp/playwright-core/package" => "tmp/playwright-core" do
-      with_tmp_download_pathname "tgz" do |pathname|
-        pathname.binwrite URI.open(Venetian::Upstream.playwright_core_url).read # rubocop:disable Security/Open
-        system "tar", "-xzf", pathname.to_path, "-C", "tmp/playwright-core", exception: true
-      end
+      download_and_verify_playwright
+    end
+  end
+
+  def download_and_verify_playwright
+    with_tmp_download_pathname "tgz" do |pathname|
+      download Venetian::Upstream.playwright_core_url, pathname
+      verify_checksum Venetian::Upstream.playwright_core_metadata_url, pathname,
+                      method: :base64digest,
+                      extractor: ->(res) { JSON.parse(res).dig("dist", "integrity")&.slice(/\Asha512-(.+)\z/m, 1) }
+      system "tar", "-xzf", pathname.to_path, "-C", "tmp/playwright-core", exception: true
     end
   end
 end

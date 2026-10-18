@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
+require "json"
 require "open3"
 require "playwright/version"
 require "rake"
 require_relative "../../lib/venetian/gemspec"
+require_relative "../../lib/venetian/upstream"
 require_relative "../../lib/venetian/version"
 require_relative "helpers"
 require_relative "signed_commit"
@@ -13,6 +15,7 @@ module Tasks
     include Rake::DSL
     include Helpers
 
+    NODE_RELEASES_URL = "#{Venetian::Upstream::NODE_DIST_URL}/index.json".freeze
     CLIENT_REQUIREMENT = %("~> #{Gem::Version.new(Playwright::VERSION).segments.first(2).join(".")}.0").freeze
     VERSION_FILE = Venetian.const_source_location(:VERSION).first
     GEMSPEC_FILE = File.join(__dir__, "..", "..", "venetian.gemspec")
@@ -47,7 +50,8 @@ module Tasks
 
     def patch_version_file
       patch_version_constants VERSION: patched_version_string,
-                              COMPATIBLE_PLAYWRIGHT_VERSION: Playwright::COMPATIBLE_PLAYWRIGHT_VERSION
+                              COMPATIBLE_PLAYWRIGHT_VERSION: Playwright::COMPATIBLE_PLAYWRIGHT_VERSION,
+                              NODE_VERSION: latest_node_lts_version
     end
 
     def patch_version_constants(**values)
@@ -67,6 +71,14 @@ module Tasks
     def push_signed_commit
       SignedCommit.new("Bump version to #{patched_version_string}", [version_file, gemspec_file, "Gemfile.lock"])
                   .push(current_branch)
+    end
+
+    def latest_node_lts_version
+      JSON.parse(read_https(NODE_RELEASES_URL))
+          .find { |release| release["lts"] }
+          .tap { |release| raise "No LTS release found in #{NODE_RELEASES_URL}" unless release }
+          .fetch("version")
+          .delete_prefix("v")
     end
 
     def released_playwright_version

@@ -8,9 +8,26 @@ module Tasks
     class Versioned
       include Versioning
 
-      attr_accessor :version_file, :gemspec_file
+      attr_accessor :node_releases, :version_file, :gemspec_file
 
-      public :patch_version_constants, :patch_gemspec, :next_patch_version
+      def initialize
+        @node_releases = []
+      end
+
+      def node_version
+        latest_node_lts_version
+      end
+
+      public :patch_version_file, :patch_version_constants, :patch_gemspec, :next_patch_version
+
+      private
+
+      def read_https(url)
+        raise ArgumentError, "Unexpected URL #{url}" unless url == NODE_RELEASES_URL
+        raise OpenURI::HTTPError.new("503 Service Unavailable", StringIO.new) unless @node_releases
+
+        JSON.generate(@node_releases)
+      end
     end
 
     setup do
@@ -27,6 +44,42 @@ module Tasks
 
     teardown do
       FileUtils.remove_entry @tmpdir
+    end
+
+    test "latest node lts version is the first lts release without the v prefix" do
+      @versioned.node_releases = [{ "version" => "v25.1.0", "lts" => false },
+                                  { "version" => "v24.22.0", "lts" => "Krypton" },
+                                  { "version" => "v22.20.0", "lts" => "Jod" }]
+
+      assert_equal "24.22.0", @versioned.node_version
+    end
+
+    test "latest node lts version raises when there is no lts release" do
+      @versioned.node_releases << { "version" => "v25.1.0", "lts" => false }
+
+      assert_raises RuntimeError, match: /No LTS release found/ do
+        @versioned.node_version
+      end
+    end
+
+    test "patch version file bumps the gem version and patches the compatible playwright and node versions" do
+      @versioned.node_releases << { "version" => "v99.0.0", "lts" => "Future" }
+      @versioned.patch_version_file
+
+      File.read(@versioned.version_file).then do |contents|
+        assert_includes contents, %(VERSION = "#{@versioned.next_patch_version(Gem::Version.new(Venetian::VERSION))}")
+        assert_includes contents, %(COMPATIBLE_PLAYWRIGHT_VERSION = "#{Playwright::COMPATIBLE_PLAYWRIGHT_VERSION}")
+        assert_includes contents, 'NODE_VERSION = "99.0.0"'
+      end
+    end
+
+    test "patch version file leaves the version file alone when the node releases can't be fetched" do
+      @versioned.node_releases = nil
+
+      assert_raises OpenURI::HTTPError do
+        @versioned.patch_version_file
+      end
+      assert_equal File.read(Versioning::VERSION_FILE), File.read(@versioned.version_file)
     end
 
     test "patch version constants rewrites both constants in the real version file" do
