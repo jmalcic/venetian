@@ -22,9 +22,29 @@ module Venetian
         windows ? "zip" : "tar.gz"
       end
 
+      # Returns the basename of the Node.js release archive for the given version, also its top-level directory.
+      def node_archive_basename_for(version)
+        "node-v#{version}-#{node_dir}"
+      end
+
+      # Returns the filename of the Node.js release archive for the given version.
+      def node_archive_name_for(version)
+        "#{node_archive_basename_for(version)}.#{node_archive_extension}"
+      end
+
+      # Returns a pattern capturing the archive's SHA-256 checksum from the given version's SHASUMS256.txt.
+      def node_checksum_pattern_for(version)
+        /^(\h{64}) +#{Regexp.escape(node_archive_name_for(version))}$/
+      end
+
       # Returns the URL to download the Node.js release archive for the given version.
       def node_url_for(version)
-        "#{NODE_DIST_URL}/v#{version}/node-v#{version}-#{node_dir}.#{node_archive_extension}"
+        "#{NODE_DIST_URL}/v#{version}/#{node_archive_name_for(version)}"
+      end
+
+      # Returns the URL of the signed SHA-256 checksums for the Node.js release archives of the given version.
+      def node_signed_checksums_url_for(version)
+        "#{NODE_DIST_URL}/v#{version}/SHASUMS256.txt.asc"
       end
     end
 
@@ -44,6 +64,21 @@ module Venetian
     # Returns the URL to download the playwright-core npm package containing the driver's JS sources.
     def self.playwright_core_url
       "#{NPM_REGISTRY_URL}/playwright-core/-/playwright-core-#{COMPATIBLE_PLAYWRIGHT_VERSION}.tgz"
+    end
+
+    # Returns the URL of the npm registry metadata for the playwright-core package, which includes its integrity hash.
+    def self.playwright_core_metadata_url
+      npm_metadata_url("playwright-core", COMPATIBLE_PLAYWRIGHT_VERSION)
+    end
+
+    # Returns the URL of the npm registry metadata for the given package version.
+    def self.npm_metadata_url(name, version)
+      "#{npm_packument_url(name)}/#{version}"
+    end
+
+    # Returns the URL of the npm registry metadata for every version of the given package, including publish times.
+    def self.npm_packument_url(name)
+      "#{NPM_REGISTRY_URL}/#{name}"
     end
 
     # Returns the gemspec files for the base gem.

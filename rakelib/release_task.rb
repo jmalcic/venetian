@@ -1,19 +1,18 @@
 # frozen_string_literal: true
 
 require "json"
-require "open-uri"
-require "tmpdir"
-require "playwright/version"
-require_relative "../lib/venetian/gemspec"
+require "rake/clean"
 require_relative "../lib/venetian/upstream"
-require_relative "release_task/helpers"
-require_relative "release_task/platform_tasks"
-require_relative "release_task/versioning"
+require_relative "tasks/helpers"
+require_relative "release_task/platform_task"
+require_relative "tasks/signatures"
+require_relative "tasks/versioning"
 
 class ReleaseTask # :nodoc:
   include Rake::DSL
-  include Helpers
-  include Versioning
+  include Tasks::Helpers
+  include Tasks::Signatures
+  include Tasks::Versioning
 
   def self.create
     new.define
@@ -21,7 +20,7 @@ class ReleaseTask # :nodoc:
 
   def define
     core_package_tasks
-    PlatformTasks.create_for(*Venetian::Upstream::NATIVE_PLATFORMS.keys)
+    PlatformTask.create_for(*Venetian::Upstream::NATIVE_PLATFORMS.keys)
     sync_version_task
     release_source_task
   end
@@ -33,10 +32,18 @@ class ReleaseTask # :nodoc:
     CLEAN.include "tmp/playwright-core"
 
     file "tmp/playwright-core/package" => "tmp/playwright-core" do
-      with_tmp_download_pathname "tgz" do |pathname|
-        pathname.binwrite URI.open(Venetian::Upstream.playwright_core_url).read # rubocop:disable Security/Open
-        system "tar", "-xzf", pathname.to_path, "-C", "tmp/playwright-core", exception: true
-      end
+      download_and_verify_playwright
+    end
+  end
+
+  def download_and_verify_playwright
+    with_tmp_download_pathname "tgz" do |pathname|
+      download Venetian::Upstream.playwright_core_url, pathname
+      verify_checksum Venetian::Upstream.playwright_core_metadata_url, pathname,
+                      method: :base64digest,
+                      verifier: :npm,
+                      extractor: ->(res) { res.dig("dist", "integrity")&.slice(/\Asha512-(.+)\z/m, 1) }
+      system "tar", "-xzf", pathname.to_path, "-C", "tmp/playwright-core", exception: true
     end
   end
 end
