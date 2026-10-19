@@ -38,6 +38,7 @@ module Tasks
       if no_changes?
         close if open?
       else
+        @description = body.call
         push_signed_commit unless open? && pushed?
         open? ? edit : create
       end
@@ -48,11 +49,11 @@ module Tasks
     end
 
     def edit
-      gh "pr", "edit", branch, "--body", body.call
+      gh "pr", "edit", branch, "--body", @description
     end
 
     def create
-      gh "pr", "create", "--head", branch, "--title", title, "--body", body.call
+      gh "pr", "create", "--head", branch, "--title", title, "--body", @description
     end
 
     def close

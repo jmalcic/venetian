@@ -1,0 +1,42 @@
+name: Update Keys
+
+on:
+  schedule:
+    - cron: '0 12 * * 1'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-keys
+
+jobs:
+  update:
+    name: Open a pull request for changed signing keys
+    runs-on: ubuntu-latest
+    # Only main may use the environment holding the app's private key
+    environment: bot
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install Ruby and gems
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          ruby-version: ruby
+      - name: Create a token for the pull request
+        id: token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.BOT_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Open, update or close the pull request for changed keys
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: bundle exec rake update_keys:pull_request

@@ -5,11 +5,13 @@ require "rake/clean"
 require_relative "../lib/venetian/upstream"
 require_relative "tasks/helpers"
 require_relative "release_task/platform_task"
+require_relative "tasks/signatures"
 require_relative "tasks/versioning"
 
 class ReleaseTask # :nodoc:
   include Rake::DSL
   include Tasks::Helpers
+  include Tasks::Signatures
   include Tasks::Versioning
 
   def self.create
@@ -39,7 +41,8 @@ class ReleaseTask # :nodoc:
       download Venetian::Upstream.playwright_core_url, pathname
       verify_checksum Venetian::Upstream.playwright_core_metadata_url, pathname,
                       method: :base64digest,
-                      extractor: ->(res) { JSON.parse(res).dig("dist", "integrity")&.slice(/\Asha512-(.+)\z/m, 1) }
+                      verifier: :npm,
+                      extractor: ->(res) { res.dig("dist", "integrity")&.slice(/\Asha512-(.+)\z/m, 1) }
       system "tar", "-xzf", pathname.to_path, "-C", "tmp/playwright-core", exception: true
     end
   end

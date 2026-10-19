@@ -15,7 +15,7 @@ module Venetian
 
     test "node checksums url is alongside the node url" do
       assert_equal File.dirname(Upstream::NATIVE_PLATFORMS.fetch("x64-mingw-ucrt").node_url_for(NODE_VERSION)),
-                   File.dirname(Upstream::NATIVE_PLATFORMS.fetch("x64-mingw-ucrt").node_checksums_url_for(NODE_VERSION))
+                   File.dirname(Upstream::NATIVE_PLATFORMS.fetch("x64-mingw-ucrt").node_signed_checksums_url_for(NODE_VERSION))
     end
 
     test "node checksum pattern captures the checksum of the downloaded archive only" do

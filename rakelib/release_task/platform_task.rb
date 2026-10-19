@@ -6,6 +6,7 @@ require "rake/clean"
 require "tmpdir"
 require_relative "../../lib/venetian/upstream"
 require_relative "../tasks/helpers"
+require_relative "../tasks/signatures"
 
 class ReleaseTask
   class PlatformTask # :nodoc: all
@@ -24,6 +25,7 @@ class ReleaseTask
 
     include Rake::DSL
     include Tasks::Helpers
+    include Tasks::Signatures
 
     def self.responses
       @responses ||= {}
@@ -106,8 +108,9 @@ class ReleaseTask
     def download_and_extract_node(destination_dir)
       with_tmp_download_pathname platform_info.node_archive_extension do |pathname|
         download platform_info.node_url_for(Venetian::NODE_VERSION), pathname
-        verify_checksum platform_info.node_checksums_url_for(Venetian::NODE_VERSION), pathname,
+        verify_checksum platform_info.node_signed_checksums_url_for(Venetian::NODE_VERSION), pathname,
                         digest: Digest::SHA256,
+                        verifier: :node,
                         extractor: ->(res) { res[platform_info.node_checksum_pattern_for(Venetian::NODE_VERSION), 1] }
         extract_node_archive pathname, destination_dir
       end
