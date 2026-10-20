@@ -320,7 +320,7 @@ module Venetian
           end
 
           test "raises executable not found when directory missing" do
-            stubbing_exe_dir "/does/not/exist/at/all" do
+            stub_const Executable, :DEFAULT_DIR, "/does/not/exist/at/all" do
               assert_raises Executable::ExecutableNotFoundError, match: /directory does not exist/ do
                 Executable.path
               end
@@ -347,7 +347,7 @@ module Venetian
           end
 
           test "uses install directory from env var on musl Linux" do
-            mocking_exe_directory stub_exe_dir: false do |path|
+            mocking_exe_directory do |path|
               with_mock_executable path.dirname.join("elsewhere") do |exe_path|
                 ENV["VENETIAN_INSTALL_DIR"] = exe_path.dirname.to_path
 
@@ -367,7 +367,7 @@ module Venetian
           end
 
           test "uses install directory from env var" do
-            mocking_exe_directory stub_exe_dir: false do |path|
+            mocking_exe_directory do |path|
               with_mock_executable path.dirname.join("elsewhere") do |exe_path|
                 ENV["VENETIAN_INSTALL_DIR"] = exe_path.dirname.to_path
 
@@ -377,7 +377,7 @@ module Venetian
           end
 
           test "raises when executable missing from install directory from env var" do
-            mocking_exe_directory stub_exe_dir: false do |path|
+            mocking_exe_directory do |path|
               with_mock_executable path.dirname.join("elsewhere"), dir_only: true do
                 ENV["VENETIAN_INSTALL_DIR"] = path.dirname.join("elsewhere").to_path
                 assert_raises Executable::ExecutableNotFoundError, match: /playwright was not found there/ do
@@ -438,12 +438,10 @@ module Venetian
     private
 
     def mocking_exe_directory(platform: local_platform, executable: true, plaform_matches: true,
-                              stub_exe_dir: true, dir_name: "Jane O'Doe (x86) & Jürgen", &block)
+                              dir_name: "Jane O'Doe (x86) & Jürgen", &block)
       with_tmpdir(dir_name) do |dir|
         Gem::Platform.stub(:match_gem?, plaform_matches) do
-          next executable ? with_mock_executable(dir, platform: platform, &block) : yield unless stub_exe_dir
-
-          stubbing_exe_dir dir.to_path do
+          stub_const Executable, :DEFAULT_DIR, dir.to_path do
             executable ? with_mock_executable(dir, platform: platform, &block) : yield
           end
         end
@@ -470,10 +468,6 @@ module Venetian
       else
         dir.join("node").tap { |path| path.write("#!/bin/sh\nprintf '%s\\n' \"$@\"\n", perm: 0o755) }
       end
-    end
-
-    def stubbing_exe_dir(dir = nil, &)
-      Executable.stub(:exe_dir, dir, &)
     end
 
     def local_platform

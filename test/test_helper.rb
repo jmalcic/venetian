@@ -11,9 +11,12 @@ require "open3"
 require "rbconfig"
 require "active_support/core_ext/object/with"
 require "active_support/concern"
+require "active_support/testing/constant_stubbing"
 
 module Minitest
   class Test
+    include ActiveSupport::Testing::ConstantStubbing
+
     class << self
       def setup(&block)
         _setup_blocks << block
