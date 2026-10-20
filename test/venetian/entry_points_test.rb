@@ -50,6 +50,19 @@ module Venetian
       end
     end
 
+    test "playwright executable prints the command when debugging" do
+      Dir.mktmpdir do |dir|
+        Pathname.new(dir).then do |root|
+          create_fake_driver_in(root)
+          command = [root.join(EXECUTABLE), "--use-openssl-ca", root.join("package", "cli.js"), "--version"]
+
+          output, = run_executable("--version", Executable::INSTALL_DIR_ENV_VAR => dir, "VENETIAN_DEBUG" => "1")
+
+          assert_equal "#{command.shelljoin}\n", output.lines.first
+        end
+      end
+    end
+
     test "full entry point loads when Rails namespace exists without railties" do
       assert_loads <<~RUBY
         module Rails; end

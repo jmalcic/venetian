@@ -205,6 +205,8 @@ module Venetian
       def execute(*args, echo: true, exception: true, **)
         playwright_command(*args).then do |command|
           puts command.shelljoin if echo
+          # Write out the command before Playwright's output, as exec would otherwise discard it
+          $stdout.flush
           # exec misbehaves on Windows (see equivalent in `tailwindcss-ruby`), so run Playwright and exit likewise
           exit executor.run(*command, **).exitstatus if Gem.win_platform?
 
