@@ -40,18 +40,36 @@ module Venetian
     test "leaves Node with its bundled certificates when Venetian is told to" do
       ENV["VENETIAN_BUNDLED_CA"] = "1"
 
-      assert_bundled_certificates
+      assert_node_left_alone
     end
 
     test "leaves Node with its bundled certificates when Node options ask for them" do
       ENV["NODE_OPTIONS"] = "--max-old-space-size=4096 --use-bundled-ca"
 
-      assert_bundled_certificates
+      assert_node_left_alone
+    end
+
+    test "leaves Node with the system's certificates when Node options ask for them" do
+      ENV["NODE_OPTIONS"] = "--max-old-space-size=4096 --use-system-ca"
+
+      assert_node_left_alone
+    end
+
+    test "leaves Node with the system's certificates when the environment asks for them" do
+      ENV["NODE_USE_SYSTEM_CA"] = "1"
+
+      assert_node_left_alone
+    end
+
+    test "has Node use Ruby's certificates when the environment doesn't ask for the system's" do
+      ENV["NODE_USE_SYSTEM_CA"] = "0"
+
+      assert_equal %w[node --use-openssl-ca cli.js], TrustStore.node_command("node", "cli.js")
     end
 
     private
 
-    def assert_bundled_certificates
+    def assert_node_left_alone
       assert_equal %w[node cli.js], TrustStore.node_command("node", "cli.js")
       assert_empty TrustStore.environment
     end

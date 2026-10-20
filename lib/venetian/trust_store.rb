@@ -11,13 +11,16 @@ module Venetian
     CERT_DIR_ENV_VAR = OpenSSL::X509::DEFAULT_CERT_DIR_ENV # :nodoc:
     USE_OPENSSL_CA = "--use-openssl-ca" # :nodoc:
     USE_BUNDLED_CA = "--use-bundled-ca" # :nodoc:
+    USE_SYSTEM_CA = "--use-system-ca" # :nodoc:
+    SYSTEM_CA_ENV_VAR = "NODE_USE_SYSTEM_CA" # :nodoc:
     BUNDLED_CA_ENV_VAR = "VENETIAN_BUNDLED_CA" # :nodoc:
 
     class << self
       # Returns whether to run Node with the certificate authorities Ruby's OpenSSL trusts, which it does unless
-      # +VENETIAN_BUNDLED_CA+ is set or +NODE_OPTIONS+ includes +--use-bundled-ca+.
+      # +VENETIAN_BUNDLED_CA+ is set or Node is told to use other certificate authorities, with +--use-bundled-ca+ or
+      # +--use-system-ca+ in +NODE_OPTIONS+ or with +NODE_USE_SYSTEM_CA=1+.
       def enabled?
-        !ENV.key?(BUNDLED_CA_ENV_VAR) && !ENV.fetch("NODE_OPTIONS", "").split.include?(USE_BUNDLED_CA)
+        !ENV.key?(BUNDLED_CA_ENV_VAR) && !other_certificate_authorities?
       end
 
       # Returns the environment variables pointing Node at the certificates Ruby's OpenSSL trusts, if #enabled?.
@@ -32,6 +35,12 @@ module Venetian
       # ones if #enabled?.
       def node_command(node, *)
         [node, *(USE_OPENSSL_CA if enabled?), *]
+      end
+
+      private
+
+      def other_certificate_authorities?
+        ENV[SYSTEM_CA_ENV_VAR] == "1" || ENV.fetch("NODE_OPTIONS", "").split.intersect?([USE_BUNDLED_CA, USE_SYSTEM_CA])
       end
     end
 

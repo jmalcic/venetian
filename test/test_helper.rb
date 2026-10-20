@@ -50,7 +50,7 @@ module Minitest
       test_classes.each { |klass| klass.__send__(:_teardown_blocks).each { |b| instance_exec(&b) } }
     end
 
-    TRUST_STORE_OPT_OUTS = %w[VENETIAN_BUNDLED_CA NODE_OPTIONS].freeze
+    TRUST_STORE_OPT_OUTS = %w[VENETIAN_BUNDLED_CA NODE_OPTIONS NODE_USE_SYSTEM_CA].freeze
 
     setup do
       @original_trust_store_opt_outs = ENV.to_h.slice(*TRUST_STORE_OPT_OUTS)

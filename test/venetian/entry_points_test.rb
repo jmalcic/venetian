@@ -98,7 +98,7 @@ module Venetian
 
     def run_executable(*args, env)
       Bundler.with_unbundled_env do
-        Open3.capture2e(env.merge("VENETIAN_BUNDLED_CA" => nil, "NODE_OPTIONS" => nil),
+        Open3.capture2e(env.merge(TRUST_STORE_OPT_OUTS.to_h { |name| [name, nil] }),
                         RbConfig.ruby, *load_path_args, root_dir.join("exe", "playwright").to_path, *args)
       end
     end
