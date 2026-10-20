@@ -5,22 +5,23 @@ require "test_helper"
 module Venetian
   class BrowserInstallerTest < Minitest::Test
     BASE_COMMAND = %w[/bundled/node /bundled/package/cli.js].freeze
+    COMMAND = %w[/bundled/node --use-openssl-ca /bundled/package/cli.js].freeze
 
     Status = Data.define(:success?, :exitstatus)
 
     class ExecutorMock < Minitest::Mock
       def expect_dry_run(output, succeeds: false, browser: nil)
         expect(:capture, [output, Data.define(:success?).new(succeeds)],
-               [*BASE_COMMAND, "install-deps", *browser, "--dry-run"])
+               [*COMMAND, "install-deps", *browser, "--dry-run"])
       end
 
       def expect_install(*args, output: "", succeeds: true)
-        expect(:capture, [output, Status.new(succeeds, succeeds ? 0 : 1)], [*BASE_COMMAND, "install", *args],
+        expect(:capture, [output, Status.new(succeeds, succeeds ? 0 : 1)], [*COMMAND, "install", *args],
                merge_stderr: false)
       end
 
       def expect_install_deps(*args)
-        expect(:capture, ["", Status.new(true, 0)], [*BASE_COMMAND, "install-deps", *args], merge_stderr: false)
+        expect(:capture, ["", Status.new(true, 0)], [*COMMAND, "install-deps", *args], merge_stderr: false)
       end
     end
 
@@ -398,11 +399,11 @@ module Venetian
           end
 
           test "install streams output when debugging" do
-            @executor_mock.expect(:system, true, [*BASE_COMMAND, "install", "--with-deps"], exception: true)
+            @executor_mock.expect(:system, true, [*COMMAND, "install", "--with-deps"], exception: true)
             ENV["VENETIAN_DEBUG"] = "1"
 
             with_stubs do
-              assert_output "#{[*BASE_COMMAND, "install", "--with-deps"].shelljoin}\n" do
+              assert_output "#{[*COMMAND, "install", "--with-deps"].shelljoin}\n" do
                 BrowserInstaller.install(install_dependencies: true)
               end
             end

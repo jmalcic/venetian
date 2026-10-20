@@ -44,9 +44,11 @@ lib/venetian/version.rb                  VERSION, COMPATIBLE_PLAYWRIGHT_VERSION,
 lib/venetian/upstream.rb                 NATIVE_PLATFORMS (gem platform => PlatformInfo), npm/nodejs.org URLs
 lib/venetian/executable.rb               Finds and validates the bundled node + package/cli.js, runs commands
 lib/venetian/browser_installer.rb        Browser and system-dependency installation, locking, writability checks
+lib/venetian/trust_store.rb              Environment pointing the bundled Node at Ruby's certificate authorities
 lib/venetian/playwright_create_extensions.rb   Prepended into Playwright's create: bundled CLI as default
 lib/venetian/browser_runner_extensions.rb      Prepended into Capybara::Playwright::BrowserRunner: auto-install
 lib/venetian/connection_extensions.rb       Prepended into Playwright::Connection: raises ForkedConnectionError after fork
+lib/venetian/transport_extensions.rb        Prepended into Playwright::Transport: runs the bundled driver with TrustStore
 lib/venetian/system_test_case_extension.rb     driven_by tracking, browser install before parallel forking
 lib/venetian/railtie.rb                  Loads the Rake task, installs SystemTestCaseExtension
 lib/venetian/gemspec.rb                  Venetian::GEMSPEC, the loaded spec for this gem
@@ -66,7 +68,8 @@ test/tasks/, test/upstream_task_test.rb  Tests for rakelib/
 
 The assembled driver for each platform is `exe/<platform>/node` (`node.exe` on `x64-mingw-ucrt`) next to
 `exe/<platform>/package/`, with `package/cli.js` as the entry point. `Executable.base_command` depends on this
-layout, so keep it if you change the assembly. There's no wrapper script.
+layout, so keep it if you change the assembly. There's no wrapper script: `Executable.playwright_command`
+(through `TrustStore::NodeCommand`) adds the Node options Venetian runs the driver with between the two.
 
 ## Releases and versions
 

@@ -9,14 +9,17 @@ module Venetian
   # Provides methods for locating the Playwright executable.
   module Executable
     class Executor # :nodoc:
+      include Open3
+      include TrustStore
+
       public :system, :exec
 
       def capture(*command, merge_stderr: true, **)
-        merge_stderr ? Open3.capture2e(*command, **) : Open3.capture2(*command, **)
+        merge_stderr ? capture2e(*command, **) : capture2(*command, **)
       end
 
       def run(*command, **)
-        Process.wait2(Process.spawn(*command, **)).last
+        Process.wait2(spawn(*command, **)).last
       end
     end
 
@@ -174,7 +177,21 @@ module Venetian
       end
     end
 
+    module Invocation # :nodoc:
+      def playwright_command(*args)
+        [*base_command, *args]
+      end
+
+      def cli_command?(command)
+        command == cli_command
+      rescue UnsupportedPlatformError, ExecutableNotFoundError, UnsupportedPathError
+        false
+      end
+    end
+
     extend Validations
+    extend Invocation
+    extend TrustStore::NodeCommand
 
     class << self
       # Returns the path to the Node executable. Raises an error if the executable cannot be found.
@@ -186,7 +203,7 @@ module Venetian
 
       # Executes the Playwright executable with the given arguments, replacing the current process.
       def execute(*args, echo: true, exception: true, **)
-        [*base_command, *args].then do |command|
+        playwright_command(*args).then do |command|
           puts command.shelljoin if echo
           # exec misbehaves on Windows (see equivalent in `tailwindcss-ruby`), so run Playwright and exit likewise
           exit executor.run(*command, **).exitstatus if Gem.win_platform?
@@ -199,7 +216,7 @@ module Venetian
 
       # Runs the Playwright executable with the given arguments.
       def system(*args, echo: true, exception: true, **)
-        [*base_command, *args].then do |command|
+        playwright_command(*args).then do |command|
           puts command.shelljoin if echo
           executor.system(*command, exception:, **(echo ? {} : { out: File::NULL, err: File::NULL }), **)
         end
@@ -207,7 +224,7 @@ module Venetian
 
       # Runs the Playwright executable with the given arguments, returning its combined output and status.
       def capture(*args, echo: true, **)
-        [*base_command, *args].then do |command|
+        playwright_command(*args).then do |command|
           puts command.shelljoin if echo
           executor.capture(*command, **).tap do |output, _|
             puts output if echo

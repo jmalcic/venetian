@@ -8,13 +8,17 @@ module Venetian
       def expect_system(retval, args = nil, **)
         if retval.is_a?(Class) && retval <= Exception
           expect(:system, nil) do |*actual_args, **actual_options|
-            assert_equal [*Executable.base_command, *args], actual_args
+            assert_equal [*playwright_command, *args], actual_args
             assert_equal Hash(**), actual_options
             raise retval
           end
         else
-          expect(:system, retval, [*Executable.base_command, *args], **)
+          expect(:system, retval, [*playwright_command, *args], **)
         end
+      end
+
+      def playwright_command
+        Executable.base_command.then { |node, cli| [node, "--use-openssl-ca", cli] }
       end
     end
 
@@ -28,7 +32,7 @@ module Venetian
               @executor_mock.expect_system(true, ["foo"], exception: true)
 
               with_stubs do
-                assert_output "#{Executable.base_command.shelljoin} foo\n" do
+                assert_output "#{@executor_mock.playwright_command.shelljoin} foo\n" do
                   assert Executable.system "foo"
                 end
               end
@@ -42,7 +46,7 @@ module Venetian
               @executor_mock.expect_system(StandardError)
 
               with_stubs do
-                assert_output "#{Executable.base_command.shelljoin} foo\n" do
+                assert_output "#{@executor_mock.playwright_command.shelljoin} foo\n" do
                   assert_raises StandardError do
                     Executable.system "foo"
                   end
@@ -58,7 +62,7 @@ module Venetian
               @executor_mock.expect_system(nil, ["foo"], exception: false)
 
               with_stubs do
-                assert_output "#{Executable.base_command.shelljoin} foo\n" do
+                assert_output "#{@executor_mock.playwright_command.shelljoin} foo\n" do
                   refute Executable.system "foo", exception: false
                 end
               end
@@ -96,7 +100,7 @@ module Venetian
 
           test "capture passes options to executor" do
             mocking_exe_directory do
-              @executor_mock.expect(:capture, ["output\n", :status], [*Executable.base_command, "foo"],
+              @executor_mock.expect(:capture, ["output\n", :status], [*@executor_mock.playwright_command, "foo"],
                                     chdir: "/elsewhere")
 
               with_stubs do
@@ -109,10 +113,10 @@ module Venetian
 
           test "capture calls executor and prints command and output" do
             mocking_exe_directory do
-              @executor_mock.expect(:capture, ["output\n", :status], [*Executable.base_command, "foo"])
+              @executor_mock.expect(:capture, ["output\n", :status], [*@executor_mock.playwright_command, "foo"])
 
               with_stubs do
-                assert_output "#{Executable.base_command.shelljoin} foo\noutput\n" do
+                assert_output "#{@executor_mock.playwright_command.shelljoin} foo\noutput\n" do
                   assert_equal ["output\n", :status], Executable.capture("foo")
                 end
               end
@@ -123,7 +127,7 @@ module Venetian
 
           test "capture does not print when echo is false" do
             mocking_exe_directory do
-              @executor_mock.expect(:capture, ["output\n", :status], [*Executable.base_command, "foo"])
+              @executor_mock.expect(:capture, ["output\n", :status], [*@executor_mock.playwright_command, "foo"])
 
               with_stubs do
                 assert_output "" do
@@ -145,10 +149,10 @@ module Venetian
         included do
           test "execute calls exec with base command and args" do
             mocking_exe_directory do
-              @executor_mock.expect(:exec, true, [*Executable.base_command, "foo"])
+              @executor_mock.expect(:exec, true, [*@executor_mock.playwright_command, "foo"])
 
               with_stubs do
-                assert_output "#{Executable.base_command.shelljoin} foo\n" do
+                assert_output "#{@executor_mock.playwright_command.shelljoin} foo\n" do
                   assert Executable.execute "foo"
                 end
               end
@@ -159,7 +163,7 @@ module Venetian
 
           test "execute runs and exits with its status on Windows" do
             mocking_exe_directory do
-              @executor_mock.expect(:run, Data.define(:exitstatus).new(23), [*Executable.base_command, "foo"])
+              @executor_mock.expect(:run, Data.define(:exitstatus).new(23), [*@executor_mock.playwright_command, "foo"])
 
               with_stubs windows: true do
                 exception = assert_raises SystemExit do
@@ -174,7 +178,7 @@ module Venetian
 
           test "execute passes options to exec" do
             mocking_exe_directory do
-              @executor_mock.expect(:exec, true, [*Executable.base_command, "foo"], chdir: "/elsewhere")
+              @executor_mock.expect(:exec, true, [*@executor_mock.playwright_command, "foo"], chdir: "/elsewhere")
 
               with_stubs do
                 assert Executable.execute "foo", echo: false, chdir: "/elsewhere"
@@ -186,7 +190,7 @@ module Venetian
 
           test "execute does not print when echo is false" do
             mocking_exe_directory do
-              @executor_mock.expect(:exec, true, [*Executable.base_command, "foo"])
+              @executor_mock.expect(:exec, true, [*@executor_mock.playwright_command, "foo"])
 
               with_stubs do
                 assert_output "" do
@@ -287,6 +291,19 @@ module Venetian
             end
           end
 
+          test "cli command? matches the cli command" do
+            Executable.stub(:base_command, ["/bundled/node", "/bundled/package/cli.js"]) do
+              assert Executable.cli_command?(Executable.cli_command)
+              refute Executable.cli_command?("npx playwright")
+            end
+          end
+
+          test "cli command? is false without a bundled executable" do
+            mocking_exe_directory executable: false do
+              refute Executable.cli_command?("npx playwright")
+            end
+          end
+
           test "cli command runs from a path with percent signs that aren't variable references" do
             mocking_exe_directory dir_name: "100% %1% % A%" do
               assert_pattern do
@@ -316,6 +333,13 @@ module Venetian
           test "returns absolute path to binary for current platform" do
             mocking_exe_directory do |expected_path|
               assert_equal expected_path.to_path, Executable.path
+            end
+          end
+
+          test "base command runs the Playwright package with Node" do
+            mocking_exe_directory do |exe_path|
+              assert_equal [exe_path.to_path, exe_path.dirname.join("package", "cli.js").to_path],
+                           Executable.base_command
             end
           end
 
@@ -422,10 +446,71 @@ module Venetian
       end
     end
 
+    module TrustedCertificates
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
+          test "executor captures with Ruby's trust store" do
+            with_trust_store do
+              assert_equal "/certs/cert.pem", Executable::Executor.new.capture(*print_cert_file).first
+            end
+          end
+
+          test "executor captures standard output alone with Ruby's trust store" do
+            with_trust_store do
+              assert_equal "/certs/cert.pem",
+                           Executable::Executor.new.capture(*print_cert_file, merge_stderr: false).first
+            end
+          end
+
+          test "executor runs with Ruby's trust store" do
+            with_trust_store do
+              output = capture_subprocess_io { Executable::Executor.new.run(*print_cert_file) }
+
+              assert_equal ["/certs/cert.pem", ""], output
+            end
+          end
+
+          test "executor runs system with Ruby's trust store" do
+            with_trust_store do
+              output = capture_subprocess_io { Executable::Executor.new.system(*print_cert_file) }
+
+              assert_equal ["/certs/cert.pem", ""], output
+            end
+          end
+
+          test "executor execs with Ruby's trust store" do
+            output, = Open3.capture2e({ "SSL_CERT_FILE" => nil }, RbConfig.ruby, "-I", lib_dir.to_path, "-e", <<~RUBY)
+              require "venetian/core"
+              Venetian::Executable::Executor.new.exec(*#{print_cert_file.inspect})
+            RUBY
+
+            assert_equal OpenSSL::X509::DEFAULT_CERT_FILE, output
+          end
+        end
+
+        private
+
+        def lib_dir
+          Pathname.new(__dir__).join("..", "..", "lib")
+        end
+
+        def with_trust_store(&)
+          TrustStore.stub(:environment, { "SSL_CERT_FILE" => "/certs/cert.pem" }, &)
+        end
+
+        def print_cert_file
+          [RbConfig.ruby, "-e", "print ENV['SSL_CERT_FILE']"]
+        end
+      end
+    end
+
     include Running::Tests
     include Execution::Tests
     include CliCommand::Tests
     include Discovery::Tests
+    include TrustedCertificates::Tests
 
     setup do
       @executor_mock = ExecutorMock.new
