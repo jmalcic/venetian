@@ -137,7 +137,9 @@ certificate authority is distrusted. So Venetian runs Node with `--use-openssl-c
 authorities Ruby's OpenSSL uses (`OpenSSL::X509::DEFAULT_CERT_FILE` and `DEFAULT_CERT_DIR`, or `SSL_CERT_FILE` and
 `SSL_CERT_DIR` if set). Playwright then trusts what e.g. `Net::HTTP` does, such as a corporate proxy's certificate
 authority installed on your system, and nothing more. To use Node's bundled certificate authorities instead, set
-`VENETIAN_BUNDLED_CA=1`. `NODE_EXTRA_CA_CERTS` works as usual either way.
+`VENETIAN_BUNDLED_CA=1`. Venetian also leaves Node's certificate authorities alone if you've chosen them with
+`--use-bundled-ca` or `--use-system-ca` in `NODE_OPTIONS`, or with `NODE_USE_SYSTEM_CA=1`, as the bundled Node won't
+combine those with `--use-openssl-ca`. `NODE_EXTRA_CA_CERTS` works as usual either way.
 
 ### Getting more output
 

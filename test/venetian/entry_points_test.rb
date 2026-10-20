@@ -50,6 +50,19 @@ module Venetian
       end
     end
 
+    test "playwright executable prints the command when debugging" do
+      Dir.mktmpdir do |dir|
+        Pathname.new(dir).then do |root|
+          create_fake_driver_in(root)
+          command = [root.join(EXECUTABLE), "--use-openssl-ca", root.join("package", "cli.js"), "--version"]
+
+          output, = run_executable("--version", Executable::INSTALL_DIR_ENV_VAR => dir, "VENETIAN_DEBUG" => "1")
+
+          assert_equal "#{command.shelljoin}\n", output.lines.first
+        end
+      end
+    end
+
     test "full entry point loads when Rails namespace exists without railties" do
       assert_loads <<~RUBY
         module Rails; end
@@ -98,7 +111,7 @@ module Venetian
 
     def run_executable(*args, env)
       Bundler.with_unbundled_env do
-        Open3.capture2e(env.merge("VENETIAN_BUNDLED_CA" => nil, "NODE_OPTIONS" => nil),
+        Open3.capture2e(env.merge(TRUST_STORE_OPT_OUTS.to_h { |name| [name, nil] }),
                         RbConfig.ruby, *load_path_args, root_dir.join("exe", "playwright").to_path, *args)
       end
     end
