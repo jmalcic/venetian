@@ -44,7 +44,7 @@ module Venetian
           output, status = run_executable("--version",
                                           Executable::INSTALL_DIR_ENV_VAR => dir, "PRINT_ARGS_STATUS" => "23")
 
-          assert_equal "#{root.join("package", "cli.js")}\n--version\n", output.tr("\\", "/")
+          assert_equal "--use-openssl-ca\n#{root.join("package", "cli.js")}\n--version\n", output.tr("\\", "/")
           assert_equal 23, status.exitstatus
         end
       end
@@ -98,7 +98,8 @@ module Venetian
 
     def run_executable(*args, env)
       Bundler.with_unbundled_env do
-        Open3.capture2e(env, RbConfig.ruby, *load_path_args, root_dir.join("exe", "playwright").to_path, *args)
+        Open3.capture2e(env.merge("VENETIAN_BUNDLED_CA" => nil, "NODE_OPTIONS" => nil),
+                        RbConfig.ruby, *load_path_args, root_dir.join("exe", "playwright").to_path, *args)
       end
     end
 

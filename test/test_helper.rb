@@ -11,9 +11,12 @@ require "open3"
 require "rbconfig"
 require "active_support/core_ext/object/with"
 require "active_support/concern"
+require "active_support/testing/constant_stubbing"
 
 module Minitest
   class Test
+    include ActiveSupport::Testing::ConstantStubbing
+
     class << self
       def setup(&block)
         _setup_blocks << block
@@ -40,14 +43,29 @@ module Minitest
     end
 
     def setup
-      self.class.__send__(:_setup_blocks).each { |b| instance_exec(&b) }
+      test_classes.reverse_each { |klass| klass.__send__(:_setup_blocks).each { |b| instance_exec(&b) } }
     end
 
     def teardown
-      self.class.__send__(:_teardown_blocks).each { |b| instance_exec(&b) }
+      test_classes.each { |klass| klass.__send__(:_teardown_blocks).each { |b| instance_exec(&b) } }
+    end
+
+    TRUST_STORE_OPT_OUTS = %w[VENETIAN_BUNDLED_CA NODE_OPTIONS].freeze
+
+    setup do
+      @original_trust_store_opt_outs = ENV.to_h.slice(*TRUST_STORE_OPT_OUTS)
+      TRUST_STORE_OPT_OUTS.each { |name| ENV.delete(name) }
+    end
+
+    teardown do
+      TRUST_STORE_OPT_OUTS.each { |name| ENV[name] = @original_trust_store_opt_outs[name] }
     end
 
     private
+
+    def test_classes
+      self.class.ancestors.select { |ancestor| ancestor.is_a?(Class) && ancestor <= Test }
+    end
 
     def fixtures_dir
       Pathname.new(__dir__).join("fixtures")

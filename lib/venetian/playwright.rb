@@ -4,6 +4,7 @@ require "playwright"
 
 require "venetian/core"
 require "venetian/connection_extensions"
+require "venetian/transport_extensions"
 
 module Venetian # :nodoc:
   # Starts Playwright using the bundled executable. Accepts the same arguments as +Playwright.create+,

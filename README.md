@@ -130,6 +130,15 @@ $ playwright --version
 Version 1.61.1
 ```
 
+### Certificates
+
+The bundled Node has its own OpenSSL and certificate authorities, which can lag behind your system's, e.g. when a
+certificate authority is distrusted. So Venetian runs Node with `--use-openssl-ca`, pointing it at the certificate
+authorities Ruby's OpenSSL uses (`OpenSSL::X509::DEFAULT_CERT_FILE` and `DEFAULT_CERT_DIR`, or `SSL_CERT_FILE` and
+`SSL_CERT_DIR` if set). Playwright then trusts what e.g. `Net::HTTP` does, such as a corporate proxy's certificate
+authority installed on your system, and nothing more. To use Node's bundled certificate authorities instead, set
+`VENETIAN_BUNDLED_CA=1`. `NODE_EXTRA_CA_CERTS` works as usual either way.
+
 ### Getting more output
 
 Noisy output during a test run is often frustrating, so the gem is quiet by default. 

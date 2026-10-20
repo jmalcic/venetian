@@ -2,6 +2,7 @@
 
 require "venetian/version"
 require "venetian/upstream"
+require "venetian/trust_store"
 require "venetian/executable"
 require "venetian/browser_installer"
 require "venetian/gemspec"
