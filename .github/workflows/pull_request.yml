@@ -13,6 +13,8 @@ jobs:
     if: github.actor == 'dependabot[bot]'
     permissions:
       contents: read
+    env:
+      BUNDLE_ONLY: sync
 
     steps:
       - uses: actions/checkout@v7.0.1
@@ -23,6 +25,7 @@ jobs:
         uses: ruby/setup-ruby@v1.332.0
         with:
           bundler-cache: true
+          cache-version: sync
           ruby-version: ruby
       - name: Create a token for the version bump
         id: token

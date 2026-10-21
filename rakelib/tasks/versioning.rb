@@ -4,7 +4,6 @@ require "json"
 require "open3"
 require "playwright/version"
 require "rake"
-require_relative "../../lib/venetian/gemspec"
 require_relative "../../lib/venetian/upstream"
 require_relative "../../lib/venetian/version"
 require_relative "helpers"
@@ -122,7 +121,9 @@ module Tasks
     end
 
     def gem_dependency
-      Gem::Dependency.new(Venetian::GEMSPEC.name, Venetian::GEMSPEC.version)
+      Gem::Specification.load(gemspec_file).then do |spec|
+        Gem::Dependency.new(spec.name, spec.version)
+      end
     end
   end
 end

@@ -178,6 +178,7 @@ DEPENDENCIES
   irb
   minitest
   minitest-mock
+  playwright-ruby-client
   rake
   rubocop
   rubocop-minitest
