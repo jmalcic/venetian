@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -37,7 +37,7 @@ jobs:
             exit 1
           fi
       - name: Install Ruby and gems
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.332.0
         with:
           bundler-cache: true
           ruby-version: ruby

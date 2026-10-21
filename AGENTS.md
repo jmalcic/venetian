@@ -149,3 +149,6 @@ layout, so keep it if you change the assembly. There's no wrapper script: `Execu
   trailers such as session links.
 - Work on a branch and open a PR against `main`. Don't push to `main` directly.
 - Workflows use least-privilege `permissions` and `persist-credentials: false` on checkout. Keep that for new ones.
+- Actions are locked in `.github/workflows/actions.lock`. After adding a workflow or changing its `uses:`, run
+  `gh actions-lock` (from `gh extension install github/gh-actions-lock`) and commit the result. Don't edit the lockfile
+  by hand.

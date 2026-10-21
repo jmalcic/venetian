@@ -20,17 +20,17 @@ jobs:
     environment: bot
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Install Ruby and gems
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.332.0
         with:
           bundler-cache: true
           ruby-version: ruby
       - name: Create a token for the pull request
         id: token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.3.0
         with:
           client-id: ${{ vars.BOT_CLIENT_ID }}
           private-key: ${{ secrets.BOT_PRIVATE_KEY }}
