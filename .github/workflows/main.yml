@@ -19,11 +19,11 @@ jobs:
       release_source: ${{ steps.release_source.outputs.release_source }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.332.0
         with:
           ruby-version: ruby
           bundler-cache: true
@@ -44,11 +44,11 @@ jobs:
           - '4.0'
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.332.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
@@ -69,11 +69,11 @@ jobs:
       RAILS_VERSION: ~> ${{ matrix.rails }}.0
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.332.0
         with:
           ruby-version: '3.3'
           bundler: latest
@@ -91,11 +91,11 @@ jobs:
           - '4.0'
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@v1.332.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
