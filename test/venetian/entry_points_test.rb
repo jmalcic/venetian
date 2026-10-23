@@ -6,6 +6,34 @@ module Venetian
   class EntryPointsTest < Minitest::Test
     EXECUTABLE = Gem.win_platform? ? "node.exe" : "node"
 
+    module Rakefile
+      module Tests
+        extend ActiveSupport::Concern
+
+        included do
+          test "Rakefile defines the version tasks with only the sync group" do
+            script = <<~RUBY
+              require "rake"
+              Rake.application.init("rake", [])
+              Rake.application.load_rakefile
+              abort "missing sync_version" unless Rake::Task.task_defined?("sync_version")
+              abort "missing release_source" unless Rake::Task.task_defined?("release_source")
+              abort "test task defined" if Rake::Task.task_defined?("test")
+            RUBY
+
+            _, stderr, status = Bundler.with_original_env do
+              Open3.capture3({ "BUNDLE_ONLY" => "sync" }, RbConfig.ruby, "-rbundler/setup", "-e", script,
+                             chdir: root_dir.to_path)
+            end
+
+            assert_predicate status, :success?, stderr
+          end
+        end
+      end
+    end
+
+    include Rakefile::Tests
+
     test "Capybara-free entry point loads on its own" do
       Dir.mktmpdir do |dir|
         Pathname.new(dir).then do |root|

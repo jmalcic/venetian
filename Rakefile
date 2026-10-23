@@ -1,15 +1,24 @@
 # frozen_string_literal: true
 
+require "bundler/setup"
 require "bundler/gem_tasks"
-require "minitest/test_task"
 
-Minitest::TestTask.create
+# With BUNDLE_ONLY=sync, neither the test and lint gems nor this gem are installed and set up
+if Bundler.settings[:only].then { |groups| groups.empty? || groups.include?(:default) }
+  require "minitest/test_task"
 
-require "rubocop/rake_task"
+  Minitest::TestTask.create
 
-RuboCop::RakeTask.new
+  require "rubocop/rake_task"
 
-task default: %i[test rubocop]
+  RuboCop::RakeTask.new
+
+  task default: %i[test rubocop]
+else
+  require "pathname"
+
+  $LOAD_PATH.unshift Pathname(__dir__).join("lib").to_path
+end
 
 import "rakelib/release.rake"
 import "rakelib/upstream.rake"
