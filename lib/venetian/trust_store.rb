@@ -17,10 +17,10 @@ module Venetian
 
     class << self
       # Returns whether to run Node with the certificate authorities Ruby's OpenSSL trusts, which it does unless
-      # +VENETIAN_BUNDLED_CA+ is set or Node is told to use other certificate authorities, with +--use-bundled-ca+ or
+      # +VENETIAN_BUNDLED_CA=1+ or Node is told to use other certificate authorities, with +--use-bundled-ca+ or
       # +--use-system-ca+ in +NODE_OPTIONS+ or with +NODE_USE_SYSTEM_CA=1+.
       def enabled?
-        !ENV.key?(BUNDLED_CA_ENV_VAR) && !other_certificate_authorities?
+        ENV[BUNDLED_CA_ENV_VAR] != "1" && !other_certificate_authorities?
       end
 
       # Returns the environment variables pointing Node at the certificates Ruby's OpenSSL trusts, if #enabled?.
