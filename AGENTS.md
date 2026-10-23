@@ -104,7 +104,7 @@ layout, so keep it if you change the assembly. There's no wrapper script: `Execu
   it instead.
 - Extensions to other gems are `*Extensions` modules prepended at the bottom of their own file, not monkey patches.
   The entry points (`lib/venetian.rb`, `lib/venetian/playwright.rb`) decide which ones load.
-- Debug output only appears when `VENETIAN_DEBUG` is set. Keep the gem quiet by default.
+- Debug output only appears with `VENETIAN_DEBUG=1`. Keep the gem quiet by default.
 
 ## Tests
 

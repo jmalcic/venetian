@@ -18,7 +18,7 @@ module Venetian
       end
 
       def install_dry_run(browser = nil)
-        Executable.capture("install-deps", *browser&.to_s, "--dry-run", echo: debug?)
+        Executable.capture("install-deps", *browser&.to_s, "--dry-run", echo: Venetian.debug?)
       end
 
       def install_into_browsers_path(browser, deps: nil)
@@ -71,15 +71,11 @@ module Venetian
       end
 
       def run_installer(*args)
-        return Venetian.system(*args, exception: true, echo: true) if debug?
+        return Venetian.system(*args, exception: true, echo: true) if Venetian.debug?
 
         Executable.capture(*args, echo: false, merge_stderr: false).then do |output, status|
           raise InstallError, "exit status #{status.exitstatus}\n#{output}".strip unless status.success?
         end
-      end
-
-      def debug?
-        ENV.fetch("VENETIAN_DEBUG", nil)
       end
     end
 
