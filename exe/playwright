@@ -4,7 +4,7 @@
 require "venetian/core"
 
 begin
-  Venetian.execute(*ARGV, echo: ENV.fetch("VENETIAN_DEBUG", nil))
+  Venetian.execute(*ARGV, echo: Venetian.debug?)
 rescue Venetian::Executable::UnsupportedPlatformError, Venetian::Executable::ExecutableNotFoundError => e
   warn "ERROR: #{e.message}"
   exit 1

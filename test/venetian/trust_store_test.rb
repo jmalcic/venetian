@@ -43,6 +43,12 @@ module Venetian
       assert_node_left_alone
     end
 
+    test "has Node use Ruby's certificates when Venetian isn't told to use the bundled ones" do
+      ENV["VENETIAN_BUNDLED_CA"] = "0"
+
+      assert_equal %w[node --use-openssl-ca cli.js], TrustStore.node_command("node", "cli.js")
+    end
+
     test "leaves Node with its bundled certificates when Node options ask for them" do
       ENV["NODE_OPTIONS"] = "--max-old-space-size=4096 --use-bundled-ca"
 

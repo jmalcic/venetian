@@ -412,6 +412,21 @@ module Venetian
           ensure
             ENV.delete("VENETIAN_DEBUG")
           end
+
+          test "install captures output when debugging isn't turned on" do
+            @executor_mock.expect_install("--with-deps")
+            ENV["VENETIAN_DEBUG"] = "0"
+
+            with_stubs do
+              assert_output "" do
+                BrowserInstaller.install(install_dependencies: true)
+              end
+            end
+
+            assert_mock @executor_mock
+          ensure
+            ENV.delete("VENETIAN_DEBUG")
+          end
         end
       end
     end

@@ -23,4 +23,8 @@ module Venetian # :nodoc:
   def self.system(*, echo: true, **)
     Executable.system(*, echo: echo, **)
   end
+
+  def self.debug?
+    ENV["VENETIAN_DEBUG"] == "1"
+  end
 end
