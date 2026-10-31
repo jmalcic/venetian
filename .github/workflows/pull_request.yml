@@ -22,7 +22,7 @@ jobs:
           ref: ${{ github.head_ref }}
           persist-credentials: false
       - name: Install Ruby and gems
-        uses: ruby/setup-ruby@v1.332.0
+        uses: ruby/setup-ruby@v1.335.0
         with:
           bundler-cache: true
           cache-version: sync

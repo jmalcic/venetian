@@ -23,7 +23,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1.332.0
+        uses: ruby/setup-ruby@v1.335.0
         with:
           ruby-version: ruby
           bundler-cache: true
@@ -48,7 +48,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1.332.0
+        uses: ruby/setup-ruby@v1.335.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
@@ -73,7 +73,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1.332.0
+        uses: ruby/setup-ruby@v1.335.0
         with:
           ruby-version: '3.3'
           bundler: latest
@@ -95,7 +95,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1.332.0
+        uses: ruby/setup-ruby@v1.335.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
